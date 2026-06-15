@@ -13,7 +13,6 @@ async function synchronizeDatabaseFromCloud() {
   const target = document.getElementById('dashboard-queue-injection');
   const sheetEndpoint = localStorage.getItem('foundation_sheet_url');
 
-  // If the cloud database configuration URL isn't set, intercept and request settings configuration
   if (!sheetEndpoint) {
     target.innerHTML = `
       <div style="text-align:center; padding:48px 24px; color:var(--text-muted); font-size:0.9rem;">
@@ -102,21 +101,21 @@ function launchStudyMode(index) {
     frontTheme.classList.add('face-engraving');
     label.innerText = "Engraving";
     trackingArea.innerHTML = `
-      <div class="numeric-display">25 &nbsp; 20 &nbsp; <span class="active-num">${targetItem.metrics}</span></div>
-      <div class="mini-ticker" id="ticker-target">Tap card body to record repetition</div>
+      <div class="numeric-display" id="reps-display-box">${targetItem.metrics}</div>
+      <div class="mini-ticker" id="ticker-target">Tap card body to log a custom repetition</div>
     `;
   } else if (targetItem.phase === 'retention') {
     frontTheme.classList.add('face-retention');
     label.innerText = "Retention";
     trackingArea.innerHTML = `
-      <div class="numeric-label-clean">Day ${targetItem.dayCount} of 50</div>
-      <div class="mini-ticker">Log single daily recital</div>
+      <div class="numeric-label-clean">${targetItem.metrics}</div>
+      <div class="mini-ticker">Flip and click Complete to mark today's review</div>
     `;
   } else if (targetItem.phase === 'matured') {
     frontTheme.classList.add('face-matured');
     label.innerText = "Matured";
     trackingArea.innerHTML = `
-      <div class="numeric-label-clean">Monthly Routine</div>
+      <div class="numeric-label-clean">${targetItem.metrics}</div>
       <div class="mini-ticker">Scheduled maintenance state</div>
     `;
   }
@@ -128,19 +127,81 @@ function toggleCardFlip() {
   document.getElementById('study-card').classList.toggle('flipped');
 }
 
-// Fixed parameter parsing rule to prevent underlying flip actions when interactive submenus are targeted
+// Lowers remaining ticks on the fly during an engraving study session
 function handleInternalTicker(event) {
   event.stopPropagation();
   let activeItem = database[activeCardIndexInStudy];
+  
   if (activeItem && activeItem.phase === 'engraving') {
-    triggerSnackbar("success", "Repetition recorded.");
+    let currentReps = parseInt(activeItem.metrics);
+    if (currentReps > 1) {
+      currentReps--;
+      activeItem.metrics = `${currentReps} Left`;
+      document.getElementById('reps-display-box').innerText = activeItem.metrics;
+      triggerSnackbar("success", `Repetition logged. ${currentReps} remaining.`);
+    } else {
+      activeItem.metrics = `0 Left`;
+      document.getElementById('reps-display-box').innerText = activeItem.metrics;
+      triggerSnackbar("success", "Session iterations complete! Flip to finish review.");
+    }
   }
 }
 
-function confirmCompletion(event) {
+// ACTIVE PROGRESSION CALCULATOR: Pushes state modifications straight to the backend row targets
+async function confirmCompletion(event) {
   event.stopPropagation();
-  triggerSnackbar("success", "Review marked complete.");
-  showDashboard();
+  const sheetEndpoint = localStorage.getItem('foundation_sheet_url');
+  let activeItem = database[activeCardIndexInStudy];
+  
+  if (!activeItem || !sheetEndpoint) return;
+  
+  triggerSnackbar("success", "Updating progression metrics...");
+
+  // Calculate Memory Tier Progressions
+  if (activeItem.phase === 'engraving') {
+    let currentReps = parseInt(activeItem.metrics);
+    // If completed without tapping down manually, or if it hit zero
+    if (currentReps <= 1 || isNaN(currentReps)) {
+      activeItem.phase = "retention";
+      activeItem.dayCount = 1;
+      activeItem.metrics = "Day 1 of 50";
+    } else {
+      // Just logged one day of reviews, keep tracking ticks remaining
+      activeItem.dayCount = Number(activeItem.dayCount) + 1;
+    }
+  } else if (activeItem.phase === 'retention') {
+    let currentDay = Number(activeItem.dayCount);
+    if (currentDay >= 50) {
+      activeItem.phase = "matured";
+      activeItem.dayCount = 50;
+      activeItem.metrics = "Monthly";
+    } else {
+      currentDay++;
+      activeItem.dayCount = currentDay;
+      activeItem.metrics = `Day ${currentDay} of 50`;
+    }
+  } else if (activeItem.phase === 'matured') {
+    activeItem.metrics = "Monthly"; // Maintenance state reset placeholder
+  }
+
+  try {
+    await fetch(sheetEndpoint, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(activeItem) // Sends the object including its core unique row ID
+    });
+    
+    triggerSnackbar("success", "Progress tracked successfully.");
+    
+    setTimeout(() => {
+      showDashboard();
+    }, 800);
+
+  } catch (error) {
+    console.error("Progression write failure:", error);
+    triggerSnackbar("warning", "Could not sync progression update with spreadsheet server.");
+  }
 }
 
 // --- VIEW 3: LIVE ESV API AND PERSISTENCE WRITER ---
