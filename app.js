@@ -1,421 +1,378 @@
-// --- APPLICATION STATE PROXIES ---
-let database = [];
-let activeCardIndexInStudy = null;
-let temporaryIngestionObject = null;
+/**
+ * FOUNDATION - SCRIPTURE MEMORY ENGINE (app.js)
+ * Fully standalone frontend application controller.
+ */
 
-// Initialize Application Lifecycle Hooks
-window.onload = function() {
-  synchronizeDatabaseFromCloud();
+// ==========================================
+// 1. CONFIGURATION & STATE MANAGEMENT
+// ==========================================
+const CONFIG = {
+    get sheetUrl() { return localStorage.getItem('foundation_sheet_url') || ''; },
+    set sheetUrl(val) { localStorage.setItem('foundation_sheet_url', val.trim()); },
+    
+    get esvKey() { return localStorage.getItem('foundation_esv_key') || ''; },
+    set esvKey(val) { localStorage.setItem('foundation_esv_key', val.trim()); }
 };
 
-// --- READ OPERATION: REMOTE GOOGLE SHEET OVERLAY SYNCHRONIZER ---
-async function synchronizeDatabaseFromCloud() {
-  const target = document.getElementById('dashboard-queue-injection');
-  const sheetEndpoint = localStorage.getItem('foundation_sheet_url');
+// Application reactive runtime state
+let currentVerses = [];
 
-  if (!sheetEndpoint) {
-    target.innerHTML = `
-      <div style="text-align:center; padding:48px 24px; color:var(--text-muted); font-size:0.9rem;">
-        <p style="margin-bottom:16px;">App storage routing configurations required.</p>
-        <button class="action-btn btn-dark" style="max-width:200px; margin:0 auto; padding:10px;" onclick="openSettingsModal()">Configure Vault</button>
-      </div>
-    `;
-    return;
-  }
-  
-  target.innerHTML = `<div style="text-align:center; padding:32px; color:var(--text-muted); font-size:0.9rem;">Syncing review matrix queue...</div>`;
-  
-  try {
-    const response = await fetch(sheetEndpoint);
-    const result = await response.json();
-    
-    if (result.success) {
-      database = result.data;
-      renderDashboardQueue();
-    } else {
-      triggerSnackbar("warning", "Database sync failed: " + result.error);
+// ==========================================
+// 2. FIRST-LETTER CIPHER ALGORITHM
+// ==========================================
+/**
+ * Transforms full text into a first-letter cipher while rigorously preserving punctuation.
+ * Example: "I can do all things..." -> "I c d a t..."
+ */
+function generateCipher(text) {
+    if (!text) return '';
+    return text
+        .split(/\s+/) 
+        .map(word => {
+            if (!word) return '';
+            // Locate the initial alphanumeric marker inside the parsed string chunk
+            const firstLetterMatch = word.match(/[a-zA-Z0-9]/);
+            if (!firstLetterMatch) return word; 
+            
+            const firstLetterIndex = firstLetterMatch.index;
+            const firstLetter = firstLetterMatch[0];
+            
+            const beforePunctuation = word.slice(0, firstLetterIndex);
+            const afterPunctuation = word.slice(firstLetterIndex + 1);
+            
+            // Isolate trailing punctuation marks from alpha characters
+            const cleanAfterPunctuation = afterPunctuation.replace(/[a-zA-Z0-9]/g, '');
+            
+            return beforePunctuation + firstLetter + cleanAfterPunctuation;
+        })
+        .join(' ');
+}
+
+// ==========================================
+// 3. SPACED REPETITION LOGIC (SRS)
+// ==========================================
+/**
+ * Processes your custom 4-phase system rules upon memory card completion.
+ */
+function calculateNextSRSState(currentPhase, currentDay) {
+    let nextPhase = currentPhase;
+    let nextDay = currentDay + 1;
+    let daysToAdd = 1;
+
+    switch (currentPhase) {
+        case 1:
+            // Phase 1: 5-Day Deep Burn
+            if (nextDay > 5) {
+                nextPhase = 2;
+                nextDay = 1;
+                daysToAdd = 1;
+            } else {
+                daysToAdd = 1;
+            }
+            break;
+            
+        case 2:
+            // Phase 2: Daily Solidify (45 Days total)
+            if (nextDay > 45) {
+                nextPhase = 3;
+                nextDay = 1;
+                daysToAdd = 7; // Switch cadence to weekly intervals
+            } else {
+                daysToAdd = 1;
+            }
+            break;
+            
+        case 3:
+            // Phase 3: Weekly Maintenance (7 Weeks total)
+            if (nextDay > 7) {
+                nextPhase = 4;
+                nextDay = 1;
+                daysToAdd = 30; // Push out to lifetime monthly interval tracks
+            } else {
+                daysToAdd = 7;
+            }
+            break;
+            
+        case 4:
+            // Phase 4: Lifetime Monthly tracking loop
+            daysToAdd = 30;
+            break;
     }
-  } catch (error) {
-    console.error("Network communication failure detailed logs:", error);
-    triggerSnackbar("warning", "Could not connect to database cloud engine.");
-    target.innerHTML = `<div style="text-align:center; padding:32px; color:var(--accent-engraving); font-size:0.9rem;">Database Offline</div>`;
-  }
+
+    const nextDueDate = new Date();
+    nextDueDate.setDate(nextDueDate.getDate() + daysToAdd);
+
+    return {
+        phase: nextPhase,
+        dayInPhase: nextDay,
+        nextDueDate: nextDueDate.toISOString().split('T')[0]
+    };
 }
 
-// --- NAVIGATION VIEW MATRIX ROUTERS ---
-function showDashboard() {
-  document.getElementById('view-study').classList.remove('active');
-  document.getElementById('view-add-verse').classList.remove('active');
-  document.getElementById('view-dashboard').classList.add('active');
-  document.getElementById('study-card').classList.remove('flipped');
-  synchronizeDatabaseFromCloud();
-}
-
-function showAddVerse() {
-  document.getElementById('view-dashboard').classList.remove('active');
-  document.getElementById('view-add-verse').classList.add('active');
-  resetIngestionForm();
-}
-
-// --- VIEW 1: DASHBOARD COMPILER ---
-function renderDashboardQueue() {
-  const target = document.getElementById('dashboard-queue-injection');
-  const counterNode = document.getElementById('dashboard-pending-count');
-  target.innerHTML = "";
-  counterNode.innerText = database.length;
-
-  if (database.length === 0) {
-    target.innerHTML = `<div style="text-align:center; padding:48px 24px; color:var(--text-muted); font-size:0.9rem;">Queue is empty.</div>`;
-    return;
-  }
-
-  database.forEach((item, index) => {
-    let reference = item.reference || item.Reference || 'Unknown Reference';
-    let phase = (item.phase || item.Phase || 'engraving').toLowerCase();
-    
-    let rawReps = item.repsLeft !== undefined ? item.repsLeft : (item.RepsLeft !== undefined ? item.RepsLeft : 15);
-    let repsLeft = parseInt(rawReps);
-    if (isNaN(repsLeft)) repsLeft = 15;
-
-    let currentDay = parseInt(item.currentDay || item.CurrentDay || item.dayCount || item.DayCount) || 1;
-    
-    let titleLabel = "";
-    let badgeText = "";
-
-    if (phase === 'engraving') {
-      titleLabel = `Engraving Mode`;
-      badgeText = repsLeft <= 0 ? "Done Today" : `${repsLeft} Left`;
-    } else if (phase === 'retention') {
-      titleLabel = `Retention — Day ${currentDay}`;
-      badgeText = `Day ${currentDay}/50`;
-    } else {
-      titleLabel = `Matured System`;
-      badgeText = `Monthly`;
+/**
+ * Calculates current execution targets displayed directly on card fronts
+ */
+function getTargetRepsLabel(phase, dayInPhase) {
+    if (phase === 1) {
+        // Linear step down rules: Day 1: 25x -> Day 5: 5x
+        return `${30 - (dayInPhase * 5)}x today`;
     }
-    
-    let row = document.createElement('div');
-    row.className = `queue-item item-${phase}`;
-    row.onclick = () => launchStudyMode(index);
-    row.innerHTML = `
-      <div class="item-content">
-        <h3>${reference}</h3>
-        <div class="item-phase-lbl">${titleLabel}</div>
-      </div>
-      <div class="item-counter">${badgeText}</div>
-    `;
-    target.appendChild(row);
-  });
+    if (phase === 2) return "1x today";
+    if (phase === 3) return "1x this week";
+    return "1x this month";
 }
 
-// --- VIEW 2: CARD FOCUS FLIP ENGINE ---
-function launchStudyMode(index) {
-  activeCardIndexInStudy = index;
-  const targetItem = database[index];
-  
-  let reference = targetItem.reference || targetItem.Reference || 'No Reference';
-  let phase = (targetItem.phase || targetItem.Phase || 'engraving').toLowerCase();
-  let text = targetItem.text || targetItem.Text || 'No text found';
-  
-  let rawReps = targetItem.repsLeft !== undefined ? targetItem.repsLeft : (targetItem.RepsLeft !== undefined ? targetItem.RepsLeft : 15);
-  let repsLeft = parseInt(rawReps);
-  if (isNaN(repsLeft)) repsLeft = 15;
+function getPhaseName(phase) {
+    const names = { 1: 'DEEP BURN', 2: 'DAILY SOLIDIFY', 3: 'WEEKLY MAINT.', 4: 'LIFETIME' };
+    return names[phase] || '';
+}
 
-  let currentDay = parseInt(targetItem.currentDay || targetItem.CurrentDay || targetItem.dayCount || targetItem.DayCount) || 1;
+// ==========================================
+// 4. UI RENDERING ENGINE
+// ==========================================
+function renderGrid(verses) {
+    const grid = document.getElementById('card-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
 
-  document.getElementById('card-reference-title').innerText = reference;
-  document.getElementById('card-cipher-render').innerText = text;
-
-  const frontTheme = document.getElementById('card-front-theme');
-  const label = document.getElementById('card-tag-label');
-  const trackingAreaFront = document.getElementById('card-tracking-render-front');
-  const trackingAreaBack = document.getElementById('card-tracking-render-back');
-  
-  frontTheme.className = "face";
-  document.getElementById('study-card').classList.remove('flipped');
-
-  if (phase === 'engraving') {
-    frontTheme.classList.add('face-engraving');
-    label.innerText = "Engraving Mode";
-    
-    if (repsLeft <= 0) {
-      trackingAreaFront.innerHTML = `
-        <div class="numeric-display" id="reps-display-box" style="color:var(--accent-retention); font-size:1.3rem; margin-bottom:4px;">Done for today!</div>
-        <div class="mini-ticker">Flip card over to finalize progress.</div>
-      `;
-    } else {
-      trackingAreaFront.innerHTML = `
-        <div class="numeric-display" id="reps-display-box" style="color:var(--text-main); font-size:1.4rem; margin-bottom:4px;">${repsLeft} Left</div>
-        <button class="action-btn btn-dark" style="padding:10px 16px; font-size:0.8rem; margin-top:8px;" onclick="handleInternalTicker(event)">Log Repetition (-1)</button>
-      `;
+    if (verses.length === 0) {
+        grid.innerHTML = `<div class="no-cards" style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); margin-top: 3rem;">No verses configured. Tap "+ Add" or configure keys in Settings.</div>`;
+        return;
     }
-  } else if (phase === 'retention') {
-    frontTheme.classList.add('face-retention');
-    label.innerText = `Retention Mode (Day ${currentDay}/50)`;
-    trackingAreaFront.innerHTML = `
-      <div class="numeric-label-clean" style="font-size:1.1rem; color:var(--text-main); font-weight:600;">Review Scheduled</div>
-      <div class="mini-ticker">Tap card to verify accuracy.</div>
-    `;
-  } else {
-    frontTheme.classList.add('face-matured');
-    label.innerText = "Matured Maintenance";
-    trackingAreaFront.innerHTML = `
-      <div class="numeric-label-clean" style="font-size:1.1rem; color:var(--text-main); font-weight:600;">Monthly Checkup</div>
-    `;
-  }
 
-  trackingAreaBack.innerHTML = `
-    <button class="action-btn btn-accent-complete" style="width:100%; font-weight:700;" onclick="confirmCompletion(event)">Mark Review Complete</button>
-  `;
+    verses.forEach(verse => {
+        const cardWrapper = document.createElement('div');
+        cardWrapper.className = 'card-wrapper';
+        
+        const cipherHTML = generateCipher(verse.text);
+        const targetLabel = getTargetRepsLabel(verse.phase, verse.current_day_in_phase);
 
-  document.getElementById('view-dashboard').classList.remove('active');
-  document.getElementById('view-study').classList.add('active');
-}
+        cardWrapper.innerHTML = `
+            <div class="flip-card" id="card-${verse.id}">
+                <div class="card-face card-front phase-${verse.phase}">
+                    <div class="card-content">
+                        <span class="phase-label">PHASE ${verse.phase} &bull; ${getPhaseName(verse.phase)}</span>
+                        <h2 class="verse-reference">${verse.reference}</h2>
+                        <div class="target-badge">${targetLabel}</div>
+                    </div>
+                </div>
+                <div class="card-face card-back">
+                    <div class="card-content">
+                        <span class="cipher-title">${verse.reference.toUpperCase()}</span>
+                        <p class="cipher-text">${cipherHTML}</p>
+                        <div class="card-actions">
+                            <button class="complete-btn" data-id="${verse.id}">Complete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
 
-function toggleCardFlip() {
-  document.getElementById('study-card').classList.toggle('flipped');
-}
+        const flipCard = cardWrapper.querySelector('.flip-card');
+        flipCard.addEventListener('click', (e) => {
+            if (e.target.classList.contains('complete-btn')) return;
+            flipCard.classList.toggle('flipped');
+        });
 
-function handleInternalTicker(event) {
-  event.stopPropagation();
-  let activeItem = database[activeCardIndexInStudy];
-  if (!activeItem) return;
+        const completeBtn = cardWrapper.querySelector('.complete-btn');
+        completeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleVerseCompletion(verse.id);
+        });
 
-  let repsKey = activeItem.repsLeft !== undefined ? 'repsLeft' : (activeItem.RepsLeft !== undefined ? 'RepsLeft' : 'repsLeft');
-  let reps = parseInt(activeItem[repsKey]);
-  if (isNaN(reps)) reps = 15;
-
-  if (reps <= 0) {
-    triggerSnackbar("success", "You are already done with this card for today!");
-    return;
-  }
-
-  reps--;
-  activeItem[repsKey] = reps; 
-
-  const displayBox = document.getElementById('reps-display-box');
-  if (reps > 0) {
-    displayBox.innerText = `${reps} Left`;
-    triggerSnackbar("success", `Repetition logged. ${reps} remaining.`);
-  } else {
-    triggerSnackbar("success", "Session complete! Flip card to save to the sheet.");
-    
-    let trackingAreaFront = document.getElementById('card-tracking-render-front');
-    trackingAreaFront.innerHTML = `
-      <div class="numeric-display" id="reps-display-box" style="color:var(--accent-retention); font-size:1.3rem; margin-bottom:4px;">Done for today!</div>
-      <div class="mini-ticker">Flip card over to finalize progress.</div>
-    `;
-  }
-}
-
-async function confirmCompletion(event) {
-  event.stopPropagation();
-  const sheetEndpoint = localStorage.getItem('foundation_sheet_url');
-  let activeItem = database[activeCardIndexInStudy];
-  
-  if (!activeItem || !sheetEndpoint) return;
-  
-  triggerSnackbar("success", "Saving updates to cloud...");
-
-  let phaseKey = activeItem.phase ? 'phase' : (activeItem.Phase ? 'Phase' : 'phase');
-  let dayKey = activeItem.currentDay ? 'currentDay' : (activeItem.CurrentDay ? 'CurrentDay' : 'currentDay');
-  let repsKey = activeItem.repsLeft !== undefined ? 'repsLeft' : (activeItem.RepsLeft !== undefined ? 'RepsLeft' : 'repsLeft');
-
-  let phase = (activeItem[phaseKey] || 'engraving').toLowerCase();
-  let repsLeft = parseInt(activeItem[repsKey]);
-  let currentDay = parseInt(activeItem[dayKey]) || 1;
-
-  if (isNaN(repsLeft)) repsLeft = 15;
-
-  if (phase === 'engraving') {
-    if (repsLeft <= 0) {
-      activeItem.phase = "retention";
-      activeItem.currentDay = 1;
-      activeItem.repsLeft = 0;
-    } else {
-      activeItem.phase = "engraving";
-      activeItem.repsLeft = repsLeft;
-      activeItem.currentDay = currentDay;
-    }
-  } else if (phase === 'retention') {
-    if (currentDay >= 50) {
-      activeItem.phase = "matured";
-      activeItem.currentDay = 50;
-      activeItem.repsLeft = 0;
-    } else {
-      activeItem.phase = "retention";
-      activeItem.currentDay = currentDay + 1;
-      activeItem.repsLeft = 0;
-    }
-  } else {
-    activeItem.phase = "matured";
-    activeItem.currentDay = 50;
-    activeItem.repsLeft = 0;
-  }
-
-  const synchronizedPayload = {
-    id: activeItem.id || activeItem.Id,
-    reference: activeItem.reference || activeItem.Reference,
-    phase: activeItem.phase,
-    text: activeItem.text || activeItem.Text,
-    cipher: activeItem.cipher || activeItem.Cipher,
-    repsLeft: activeItem.repsLeft,
-    currentDay: activeItem.currentDay
-  };
-
-  try {
-    await fetch(sheetEndpoint, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(synchronizedPayload)
+        grid.appendChild(cardWrapper);
     });
-    
-    triggerSnackbar("success", "Progress recorded successfully.");
-    setTimeout(() => { showDashboard(); }, 800);
-  } catch (error) {
-    console.error("Write error:", error);
-    triggerSnackbar("warning", "Could not sync layout updates.");
-  }
 }
 
-// --- VIEW 3: LIVE ESV API AND PERSISTENCE WRITER ---
-function generateFirstLetterCipher(text) {
-  return text
-    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()""’]/g, "")
-    .split(/\s+/)
-    .map(word => word.charAt(0))
-    .join(" ") + "...";
+// ==========================================
+// 5. DATA SYNC & API OPERATORS
+// ==========================================
+/**
+ * Fetches all user verses directly from the connected Google Sheet
+ */
+function fetchSheetData() {
+    if (!CONFIG.sheetUrl) return;
+
+    fetch(`${CONFIG.sheetUrl}?action=getVerses`)
+        .then(res => res.json())
+        .then(data => {
+            currentVerses = data;
+            renderGrid(currentVerses);
+        })
+        .catch(err => console.error("Database initialization fetch failure: ", err));
 }
 
-async function executeFetchPipeline() {
-  const referenceInput = document.getElementById('verse-reference').value.trim();
-  const apiKey = localStorage.getItem('esv_api_key');
-  const sheetEndpoint = localStorage.getItem('foundation_sheet_url');
-  
-  if (!sheetEndpoint || !apiKey) {
-    openSettingsModal();
-    return;
-  }
+function handleVerseCompletion(id) {
+    const verse = currentVerses.find(v => v.id === id);
+    if (!verse) return;
 
-  if (!referenceInput) {
-    triggerSnackbar("warning", "Please provide a verse reference.");
-    return;
-  }
+    const nextSRS = calculateNextSRSState(verse.phase, verse.current_day_in_phase);
+    document.getElementById(`card-${id}`).classList.remove('flipped');
 
-  const verseExists = database.some(item => {
-    let ref = item.reference || item.Reference || '';
-    return ref.toLowerCase() === referenceInput.toLowerCase();
-  });
-  
-  if (verseExists) {
-    triggerSnackbar("warning", "This text is already in your study queue.");
-    return;
-  }
+    // Mutate state locally for instant UI update
+    verse.phase = nextSRS.phase;
+    verse.current_day_in_phase = nextSRS.dayInPhase;
+    renderGrid(currentVerses);
 
-  triggerSnackbar("success", "Contacting ESV Engine...");
+    if (!CONFIG.sheetUrl) return;
 
-  try {
-    const url = `https://api.esv.org/v3/passage/text/?q=${encodeURIComponent(referenceInput)}&include-headings=false&include-footnotes=false&include-verse-numbers=false&include-short-copyright=false&include-passage-references=false`;
-    
-    const response = await fetch(url, {
-      method: "GET",
-      headers: { "Authorization": `Token ${apiKey}` }
-    });
-    
-    const data = await response.json();
-    
-    if (!data.passages || data.passages.length === 0 || data.passages[0].trim() === "") {
-      triggerSnackbar("warning", "Verse reference not found. Verify syntax.");
-      return;
-    }
-
-    const cleanFetchedText = data.passages[0].trim().replace(/\s+/g, " ");
-    const builtCipher = generateFirstLetterCipher(cleanFetchedText);
-
-    document.getElementById('fetched-text-render').innerText = `"${cleanFetchedText}"`;
-    document.getElementById('cipher-text-render').innerText = builtCipher;
-    
-    document.getElementById('ingestion-preview-panel').classList.add('active');
-    document.getElementById('form-execution-footer').style.display = "flex";
-
-    temporaryIngestionObject = {
-      reference: referenceInput,
-      phase: "engraving",
-      text: cleanFetchedText,
-      cipher: builtCipher,
-      repsLeft: 15,
-      currentDay: 1
+    const updatePayload = {
+        action: 'completeVerse',
+        id: id,
+        phase: nextSRS.phase,
+        current_day_in_phase: nextSRS.dayInPhase,
+        next_due_date: nextSRS.nextDueDate,
+        last_recited_date: new Date().toISOString().split('T')[0]
     };
 
-  } catch (error) {
-    console.error("API call error:", error);
-    triggerSnackbar("warning", "Failed to retrieve text from ESV API endpoint.");
-  }
+    fetch(CONFIG.sheetUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatePayload)
+    }).catch(err => console.error("Sync log tracking transaction error: ", err));
 }
 
-async function commitVerseToDatabase() {
-  const sheetEndpoint = localStorage.getItem('foundation_sheet_url');
-  if (!temporaryIngestionObject || !sheetEndpoint) return;
-  
-  triggerSnackbar("success", "Saving text data...");
-  
-  try {
-    await fetch(sheetEndpoint, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(temporaryIngestionObject)
-    });
+/**
+ * Contacts the ESV API to look up a verse reference, then saves it to Google Sheets
+ */
+function handleAddVerse(reference) {
+    if (!reference) return;
     
-    triggerSnackbar("success", `${temporaryIngestionObject.reference} added to study queue.`);
-    setTimeout(() => { showDashboard(); }, 800);
-  } catch (error) {
-    console.error("Write error:", error);
-    triggerSnackbar("warning", "Failed to write record to remote cloud sheet.");
-  }
+    if (!CONFIG.esvKey || !CONFIG.sheetUrl) {
+        alert("Please set up both your ESV API Key and Sheet URL in Settings first.");
+        return;
+    }
+
+    const cleanRef = encodeURIComponent(reference);
+    const esvUrl = `https://api.esv.org/v3/passage/text/?q=${cleanRef}&include-headings=false&include-footnotes=false&include-verse-numbers=false&include-short-copyright=false&include-passage-references=false`;
+
+    fetch(esvUrl, {
+        headers: { 'Authorization': `Token ${CONFIG.esvKey}` }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.passages || data.passages.length === 0) {
+            alert("Could not locate that passage reference. Verify syntax.");
+            return;
+        }
+
+        const fullText = data.passages[0].trim();
+        
+        // Build payload object targeting Google Sheet schema ingestion points
+        const newVersePayload = {
+            action: 'addVerse',
+            reference: data.query,
+            text: fullText,
+            phase: 1,
+            current_day_in_phase: 1,
+            next_due_date: new Date().toISOString().split('T')[0]
+        };
+
+        // Post record payload directly into remote Apps Script receiver
+        return fetch(CONFIG.sheetUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newVersePayload)
+        });
+    })
+    .then(() => {
+        // Re-sync local dataset cache matrices
+        setTimeout(fetchSheetData, 1000); 
+    })
+    .catch(err => console.error("Scripture creation lookup sequence exception: ", err));
 }
 
-function resetIngestionForm() {
-  document.getElementById('verse-reference').value = "";
-  document.getElementById('ingestion-preview-panel').classList.remove('active');
-  document.getElementById('form-execution-footer').style.display = "none";
-  temporaryIngestionObject = null;
-}
+// ==========================================
+// 6. DOM SYSTEM WIRING MODALS & INITIALIZATION
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // Core structural interface elements configuration
+    const settingsBtn = document.getElementById('settings-btn');
+    const addVerseBtn = document.getElementById('add-verse-btn');
+    
+    // Inject Settings & Add Verse Modals dynamically if not fully present in raw DOM markup profiles
+    setupModalDOMElements();
 
-// --- SYSTEM MODULE CONTROLLERS (MODALS & NOTIFICATIONS) ---
-function openSettingsModal() {
-  document.getElementById('modal-sheet-url-input').value = localStorage.getItem('foundation_sheet_url') || "";
-  document.getElementById('modal-api-key-input').value = localStorage.getItem('esv_api_key') || "";
-  document.getElementById('settings-modal').classList.add('active');
-}
+    const settingsModal = document.getElementById('settings-modal');
+    const addModal = document.getElementById('add-modal');
+    
+    // Load existing environment targets straight out of local key storages
+    document.getElementById('sheet-url-input').value = CONFIG.sheetUrl;
+    document.getElementById('esv-key-input').value = CONFIG.esvKey;
 
-function closeSettingsModal() {
-  document.getElementById('settings-modal').classList.remove('active');
-}
+    // Toggle Modal Operations
+    settingsBtn.addEventListener('click', () => settingsModal.classList.add('active'));
+    addVerseBtn.addEventListener('click', () => addModal.classList.add('active'));
 
-function saveSettingsCredentials() {
-  const sheetUrlVal = document.getElementById('modal-sheet-url-input').value.trim();
-  const apiKeyVal = document.getElementById('modal-api-key-input').value.trim();
-  
-  localStorage.setItem('foundation_sheet_url', sheetUrlVal);
-  localStorage.setItem('esv_api_key', apiKeyVal);
-  
-  closeSettingsModal();
-  triggerSnackbar("success", "Security vault credentials updated.");
-  showDashboard();
-}
+    // Save Settings Config
+    document.getElementById('save-settings-btn').addEventListener('click', () => {
+        CONFIG.sheetUrl = document.getElementById('sheet-url-input').value;
+        CONFIG.esvKey = document.getElementById('esv-key-input').value;
+        settingsModal.classList.remove('active');
+        fetchSheetData();
+    });
 
-function triggerSnackbar(type, message) {
-  const bar = document.getElementById('global-notification-bar');
-  const iconTarget = document.getElementById('snackbar-icon-target');
-  const msgTarget = document.getElementById('snackbar-message-target');
-  
-  bar.className = `snackbar show snackbar-${type}`;
-  msgTarget.innerText = message;
+    // Save New Verse Request
+    document.getElementById('save-verse-btn').addEventListener('click', () => {
+        const refInput = document.getElementById('verse-ref-input');
+        handleAddVerse(refInput.value);
+        refInput.value = '';
+        addModal.classList.remove('active');
+    });
 
-  if(type === 'success') {
-    iconTarget.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="#10b981"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>`;
-  } else {
-    iconTarget.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="#ef4444"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>`;
-  }
+    // Universal Close Actions for Modal backdrops
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) backdrop.classList.remove('active');
+        });
+    });
 
-  setTimeout(() => { bar.classList.remove('show'); }, 3000);
+    // Check configuration and initiate baseline rendering cycles
+    if (CONFIG.sheetUrl) {
+        fetchSheetData();
+    } else {
+        // Fallback placeholder dataset array matrix for visual onboarding inspections
+        currentVerses = [
+            { id: "demo1", reference: "Proverbs 4:7", text: "The beginning of wisdom is this: Get wisdom, and whatever you get, get insight.", phase: 1, current_day_in_phase: 1 }
+        ];
+        renderGrid(currentVerses);
+    }
+});
+
+/**
+ * Automatically creates background functional structures for standard popup UI layouts.
+ */
+function setupModalDOMElements() {
+    if (!document.getElementById('settings-modal')) {
+        const settings = document.createElement('div');
+        settings.id = 'settings-modal';
+        settings.className = 'modal-backdrop';
+        settings.innerHTML = `
+            <div class="modal-content" style="background: var(--bg-card); padding: 1.5rem; border: 1px solid var(--border-color); border-radius: 4px; max-width: 400px; width: 90%; margin: 20vh auto;">
+                <h3 style="margin-bottom: 1rem; font-family: var(--font-brand);">SETTINGS</h3>
+                <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Google Sheets Web App URL</label>
+                <input type="text" id="sheet-url-input" style="width:100%; padding: 0.5rem; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); margin-bottom: 1rem; border-radius: 3px;">
+                <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem;">ESV API Authorization Key</label>
+                <input type="password" id="esv-key-input" style="width:100%; padding: 0.5rem; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); margin-bottom: 1.5rem; border-radius: 3px;">
+                <button id="save-settings-btn" class="primary-btn" style="width: 100%;">Save Settings</button>
+            </div>`;
+        document.body.appendChild(settings);
+    }
+
+    if (!document.getElementById('add-modal')) {
+        const add = document.createElement('div');
+        add.id = 'add-modal';
+        add.className = 'modal-backdrop';
+        add.innerHTML = `
+            <div class="modal-content" style="background: var(--bg-card); padding: 1.5rem; border: 1px solid var(--border-color); border-radius: 4px; max-width: 400px; width: 90%; margin: 20vh auto;">
+                <h3 style="margin-bottom: 1rem; font-family: var(--font-brand);">ADD VERSE</h3>
+                <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Scripture Reference</label>
+                <input type="text" id="verse-ref-input" placeholder="e.g., Romans 12:1-2" style="width:100%; padding: 0.5rem; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); margin-bottom: 1.5rem; border-radius: 3px;">
+                <button id="save-verse-btn" class="primary-btn" style="width: 100%;">Fetch & Add Verse</button>
+            </div>`;
+        document.body.appendChild(add);
+    }
 }
