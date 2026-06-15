@@ -170,32 +170,32 @@ function handleInternalTicker(event) {
   let activeItem = database[activeCardIndexInStudy];
   if (!activeItem) return;
 
-  // Case-insensitive clean fallbacks
-  let currentMetrics = activeItem.metrics || activeItem.Metrics || "15 Left";
-  let currentReps = parseInt(currentMetrics);
+  let reps = parseInt(activeItem.repsLeft);
+  if (isNaN(reps)) reps = 15;
 
-  // If already zero or completed today, don't let it decrement further
-  if (currentMetrics === "0 Left" || currentMetrics.toLowerCase().includes("done")) {
+  if (reps <= 0) {
     triggerSnackbar("success", "You are already done with this card for today!");
     return;
   }
 
-  if (currentReps > 1) {
-    currentReps--;
-    activeItem.metrics = `${currentReps} Left`;
-    if (activeItem.Metrics) activeItem.Metrics = `${currentReps} Left`; // Sync capitalized fallback
-    
-    document.getElementById('reps-display-box').innerText = activeItem.metrics;
-    triggerSnackbar("success", `Repetition logged. ${currentReps} remaining.`);
+  reps--;
+  activeItem.repsLeft = reps; // Mutate local database array
+
+  const displayBox = document.getElementById('reps-display-box');
+  if (reps > 0) {
+    displayBox.innerText = `${reps} Left`;
+    triggerSnackbar("success", `Repetition logged. ${reps} remaining.`);
   } else {
-    // Hit exactly 0 repetitions left
-    activeItem.metrics = "0 Left (Done for today!)";
-    if (activeItem.Metrics) activeItem.Metrics = "0 Left (Done for today!)";
+    displayBox.innerText = "Done for today!";
+    displayBox.style.color = "var(--accent-retention)";
+    triggerSnackbar("success", "Session complete! Flip card to save to the sheet.");
     
-    document.getElementById('reps-display-box').innerText = "0 Left";
-    document.getElementById('reps-display-box').style.color = "var(--accent-retention)";
-    
-    triggerSnackbar("success", "Session complete! Flip card over to finalize today's progress.");
+    // Quick local UI transformation to clean up the button layout instantly
+    trackingAreaFront = document.getElementById('card-tracking-render-front');
+    trackingAreaFront.innerHTML = `
+      <div class="numeric-display" id="reps-display-box" style="color:var(--accent-retention); font-size:1.3rem; margin-bottom:4px;">Done for today!</div>
+      <div class="mini-ticker">Flip card over to finalize progress.</div>
+    `;
   }
 }
 
@@ -207,61 +207,43 @@ async function confirmCompletion(event) {
   
   if (!activeItem || !sheetEndpoint) return;
   
-  triggerSnackbar("success", "Syncing progression metrics with sheet...");
+  triggerSnackbar("success", "Saving updates to cloud...");
 
-  // Handle keys case-insensitively
-  let phaseKey = activeItem.phase ? 'phase' : 'Phase';
-  let dayCountKey = activeItem.dayCount ? 'dayCount' : (activeItem.daycount ? 'daycount' : 'DayCount');
-  let metricsKey = activeItem.metrics ? 'metrics' : 'Metrics';
+  let phase = (activeItem.phase || 'engraving').toLowerCase();
+  let repsLeft = parseInt(activeItem.repsLeft);
+  let currentDay = parseInt(activeItem.currentDay) || 1;
 
-  let phaseClean = (activeItem[phaseKey] || 'engraving').toLowerCase();
-  let currentMetrics = (activeItem[metricsKey] || '').toLowerCase();
-
-  if (phaseClean === 'engraving') {
-    // If they hit zero loops or clicked complete while it read "0 Left"
-    if (currentMetrics.includes("0 left") || parseInt(currentMetrics) <= 0) {
-      // Graduate to Retention Phase
-      activeItem[phaseKey] = "retention";
-      activeItem[dayCountKey] = 1;
-      activeItem[metricsKey] = "Day 1 of 50";
+  if (phase === 'engraving') {
+    if (repsLeft <= 0) {
+      // Completed all 15 loops: Graduate to Retention phase day 1
+      activeItem.phase = "retention";
+      activeItem.currentDay = 1;
+      activeItem.repsLeft = 0;
     } else {
-      // Increment the day counter but keep them in Engraving until they hit 0 loops remaining
-      activeItem[dayCountKey] = Number(activeItem[dayCountKey] || 1) + 1;
-      activeItem[metricsKey] = "Done for today!";
+      // Didn't finish all 15 loops yet, just save current progress count
+      activeItem.phase = "engraving";
     }
-  } else if (phaseClean === 'retention') {
-    let currentDay = Number(activeItem[dayCountKey] || 1);
+  } else if (phase === 'retention') {
     if (currentDay >= 50) {
-      activeItem[phaseKey] = "matured";
-      activeItem[dayCountKey] = 50;
-      activeItem[metricsKey] = "Matured (Monthly)";
+      activeItem.phase = "matured";
+      activeItem.currentDay = 50;
     } else {
-      currentDay++;
-      activeItem[dayCountKey] = currentDay;
-      activeItem[metricsKey] = `Day ${currentDay} of 50`;
+      activeItem.currentDay = currentDay + 1;
     }
-  } else {
-    activeItem[metricsKey] = "Matured (Monthly)";
   }
 
   try {
-    // Push the finalized state structure directly to your Google Sheet rows
-    await fetch(sheetEndpoint, {
+    const response = await fetch(sheetEndpoint, {
       method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(activeItem)
     });
     
     triggerSnackbar("success", "Progress recorded successfully.");
-    
-    setTimeout(() => {
-      showDashboard();
-    }, 800);
-
+    setTimeout(() => { showDashboard(); }, 800);
   } catch (error) {
-    console.error("Progression write failure:", error);
-    triggerSnackbar("warning", "Could not sync progression metrics with cloud sheet.");
+    console.error("Write error:", error);
+    triggerSnackbar("warning", "Could not sync layout updates.");
   }
 }
 
