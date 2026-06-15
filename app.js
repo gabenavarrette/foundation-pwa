@@ -65,28 +65,38 @@ function renderDashboardQueue() {
   counterNode.innerText = database.length;
 
   if (database.length === 0) {
-    target.innerHTML = `<div style="text-align:center; padding:48px 24px; color:var(--text-muted); font-size:0.9rem;">Your focus queue is clear. Click Add to queue a new text.</div>`;
+    target.innerHTML = `<div style="text-align:center; padding:48px 24px; color:var(--text-muted); font-size:0.9rem;">Queue is empty.</div>`;
     return;
   }
 
   database.forEach((item, index) => {
-    // Look for properties safely, regardless of whether they are lowercase or capitalized in the Sheet row
-    let reference = item.reference || item.Reference || 'Unknown Reference';
-    let phase = (item.phase || item.Phase || 'engraving').toLowerCase();
-    let dayCount = item.dayCount || item.daycount || item.DayCount || 1;
-    let metrics = item.metrics || item.Metrics || (phase === 'engraving' ? '15 Left' : 'Day 1 of 50');
+    let phase = (item.phase || 'engraving').toLowerCase();
+    let repsLeft = parseInt(item.repsLeft) !== undefined ? parseInt(item.repsLeft) : 15;
+    let currentDay = parseInt(item.currentDay) || 1;
+    
+    let titleLabel = "";
+    let badgeText = "";
 
-    let titleLabel = phase === 'engraving' ? `Engraving — Day ${dayCount}` : phase === 'retention' ? `Retention — Day ${dayCount}` : `Matured`;
+    if (phase === 'engraving') {
+      titleLabel = `Engraving Mode`;
+      badgeText = repsLeft <= 0 ? "Done Today" : `${repsLeft} Left`;
+    } else if (phase === 'retention') {
+      titleLabel = `Retention — Day ${currentDay}`;
+      badgeText = `Day ${currentDay}/50`;
+    } else {
+      titleLabel = `Matured System`;
+      badgeText = `Monthly`;
+    }
     
     let row = document.createElement('div');
     row.className = `queue-item item-${phase}`;
     row.onclick = () => launchStudyMode(index);
     row.innerHTML = `
       <div class="item-content">
-        <h3>${reference}</h3>
+        <h3>${item.reference}</h3>
         <div class="item-phase-lbl">${titleLabel}</div>
       </div>
-      <div class="item-counter">${metrics}</div>
+      <div class="item-counter">${badgeText}</div>
     `;
     target.appendChild(row);
   });
