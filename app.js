@@ -107,12 +107,12 @@ function launchStudyMode(index) {
   activeCardIndexInStudy = index;
   const targetItem = database[index];
   
-  // Safety checks for layout items
-  let phaseClean = (targetItem.phase || 'engraving').toLowerCase();
-  let metricsClean = targetItem.metrics || (phaseClean === 'engraving' ? '15 Left' : 'Day 1 of 50');
-  
-  document.getElementById('card-reference-title').innerText = targetItem.reference || 'No Reference';
-  document.getElementById('card-cipher-render').innerText = targetItem.text || 'No text found';
+  let phase = (targetItem.phase || 'engraving').toLowerCase();
+  let repsLeft = parseInt(targetItem.repsLeft) !== undefined ? parseInt(targetItem.repsLeft) : 15;
+  let currentDay = parseInt(targetItem.currentDay) || 1;
+
+  document.getElementById('card-reference-title').innerText = targetItem.reference;
+  document.getElementById('card-cipher-render').innerText = targetItem.text;
 
   const frontTheme = document.getElementById('card-front-theme');
   const label = document.getElementById('card-tag-label');
@@ -122,26 +122,33 @@ function launchStudyMode(index) {
   frontTheme.className = "face";
   document.getElementById('study-card').classList.remove('flipped');
 
-  if (phaseClean === 'engraving') {
+  if (phase === 'engraving') {
     frontTheme.classList.add('face-engraving');
     label.innerText = "Engraving Mode";
-    trackingAreaFront.innerHTML = `
-      <div class="numeric-display" id="reps-display-box" style="color:var(--text-main); font-size:1.4rem; margin-bottom:4px;">${metricsClean}</div>
-      <button class="action-btn btn-dark" style="padding:10px 16px; font-size:0.8rem; margin-top:8px;" onclick="handleInternalTicker(event)">Log Repetition (-1)</button>
-    `;
-  } else if (phaseClean === 'retention') {
+    
+    if (repsLeft <= 0) {
+      trackingAreaFront.innerHTML = `
+        <div class="numeric-display" id="reps-display-box" style="color:var(--accent-retention); font-size:1.3rem; margin-bottom:4px;">Done for today!</div>
+        <div class="mini-ticker">Flip card over to finalize progress.</div>
+      `;
+    } else {
+      trackingAreaFront.innerHTML = `
+        <div class="numeric-display" id="reps-display-box" style="color:var(--text-main); font-size:1.4rem; margin-bottom:4px;">${repsLeft} Left</div>
+        <button class="action-btn btn-dark" style="padding:10px 16px; font-size:0.8rem; margin-top:8px;" onclick="handleInternalTicker(event)">Log Repetition (-1)</button>
+      `;
+    }
+  } else if (phase === 'retention') {
     frontTheme.classList.add('face-retention');
-    label.innerText = "Retention Mode";
+    label.innerText = `Retention Mode (Day ${currentDay}/50)`;
     trackingAreaFront.innerHTML = `
-      <div class="numeric-label-clean" style="font-size:1.1rem; color:var(--text-main); font-weight:600;">${metricsClean}</div>
-      <div class="mini-ticker">Tap card to verify text alignment</div>
+      <div class="numeric-label-clean" style="font-size:1.1rem; color:var(--text-main); font-weight:600;">Review Scheduled</div>
+      <div class="mini-ticker">Tap card to verify accuracy.</div>
     `;
   } else {
     frontTheme.classList.add('face-matured');
     label.innerText = "Matured Maintenance";
     trackingAreaFront.innerHTML = `
-      <div class="numeric-label-clean" style="font-size:1.1rem; color:var(--text-main); font-weight:600;">${metricsClean} Routine</div>
-      <div class="mini-ticker">Tap card to review full text verification</div>
+      <div class="numeric-label-clean" style="font-size:1.1rem; color:var(--text-main); font-weight:600;">Monthly Checkup</div>
     `;
   }
 
