@@ -251,13 +251,6 @@ body {
   letter-spacing: -0.04em;
   margin: auto 0;
 }
-.card-cipher-text {
-  font-size: 1.35rem;
-  font-weight: 500;
-  line-height: 1.65;
-  text-align: center;
-  margin: auto 0;
-}
 
 .card-interactive-area {
   display: flex;
@@ -396,5 +389,6 @@ body {
   padding: 24px;
   width: 100%;
 }
-.modal-card h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
-.modal-card p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.4; }
+.modal-card h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; }
+.modal-card p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 18px; line-height: 1.4; }
+.modal-card .form-group { margin-bottom: 16px; }
