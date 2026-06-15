@@ -70,22 +70,23 @@ function renderDashboardQueue() {
   }
 
   database.forEach((item, index) => {
-    // Safety fallback: if phase or dayCount are blank/undefined, handle them gracefully
-    let phaseClean = (item.phase || 'engraving').toLowerCase();
-    let dayCountClean = item.dayCount || 1;
-    let metricsClean = item.metrics || (phaseClean === 'engraving' ? '15 Left' : 'Day 1 of 50');
+    // Look for properties safely, regardless of whether they are lowercase or capitalized in the Sheet row
+    let reference = item.reference || item.Reference || 'Unknown Reference';
+    let phase = (item.phase || item.Phase || 'engraving').toLowerCase();
+    let dayCount = item.dayCount || item.daycount || item.DayCount || 1;
+    let metrics = item.metrics || item.Metrics || (phase === 'engraving' ? '15 Left' : 'Day 1 of 50');
 
-    let titleLabel = phaseClean === 'engraving' ? `Engraving — Day ${dayCountClean}` : phaseClean === 'retention' ? `Retention — Day ${dayCountClean}` : `Matured`;
+    let titleLabel = phase === 'engraving' ? `Engraving — Day ${dayCount}` : phase === 'retention' ? `Retention — Day ${dayCount}` : `Matured`;
     
     let row = document.createElement('div');
-    row.className = `queue-item item-${phaseClean}`;
+    row.className = `queue-item item-${phase}`;
     row.onclick = () => launchStudyMode(index);
     row.innerHTML = `
       <div class="item-content">
-        <h3>${item.reference || 'Unknown Reference'}</h3>
+        <h3>${reference}</h3>
         <div class="item-phase-lbl">${titleLabel}</div>
       </div>
-      <div class="item-counter">${metricsClean}</div>
+      <div class="item-counter">${metrics}</div>
     `;
     target.appendChild(row);
   });
