@@ -243,3 +243,102 @@ body {
 .complete-btn:hover {
     background-color: #333333;
 }
+
+/* ==========================================
+   7. MODAL OVERLAY STYLES
+   ========================================== */
+
+/* Fullscreen tint overlay covering everything */
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.85); /* Heavy fade to block background noise */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    
+    /* Hidden by default, handles smooth fade-ins */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease-in-out;
+}
+
+/* Activated state via JavaScript toggle */
+.modal-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Central structural container box inside overlay */
+.modal-content {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 2rem;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    
+    /* Entrance scaling animation */
+    transform: scale(0.95);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-backdrop.active .modal-content {
+    transform: scale(1);
+}
+
+/* Typography styles inside pop-up frameworks */
+.modal-content h3 {
+    font-family: var(--font-brand);
+    font-size: 1.2rem;
+    letter-spacing: 1.5px;
+    color: #ffffff;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Form context layouts */
+.modal-content label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.modal-content input[type="text"],
+.modal-content input[type="password"] {
+    width: 100%;
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    font-family: var(--font-sans);
+    border-radius: 3px;
+    margin-bottom: 1.25rem;
+    transition: border-color 0.2s ease;
+}
+
+/* Subtle border highlight on text focusing */
+.modal-content input:focus {
+    outline: none;
+    border-color: #444444;
+}
+
+/* Style overrides for action trigger paths inside container forms */
+.modal-content .primary-btn {
+    width: 100%;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
