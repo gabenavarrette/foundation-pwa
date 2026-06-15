@@ -73,7 +73,6 @@ function renderDashboardQueue() {
     let reference = item.reference || item.Reference || 'Unknown Reference';
     let phase = (item.phase || item.Phase || 'engraving').toLowerCase();
     
-    // Look for properties case-insensitively from the Sheet headers
     let rawReps = item.repsLeft !== undefined ? item.repsLeft : (item.RepsLeft !== undefined ? item.RepsLeft : 15);
     let repsLeft = parseInt(rawReps);
     if (isNaN(repsLeft)) repsLeft = 15;
@@ -176,13 +175,11 @@ function toggleCardFlip() {
   document.getElementById('study-card').classList.toggle('flipped');
 }
 
-// Drops iterative ticking levels down on click events smoothly
 function handleInternalTicker(event) {
   event.stopPropagation();
   let activeItem = database[activeCardIndexInStudy];
   if (!activeItem) return;
 
-  // Track the correct case variation for local mutation
   let repsKey = activeItem.repsLeft !== undefined ? 'repsLeft' : (activeItem.RepsLeft !== undefined ? 'RepsLeft' : 'repsLeft');
   let reps = parseInt(activeItem[repsKey]);
   if (isNaN(reps)) reps = 15;
@@ -210,7 +207,6 @@ function handleInternalTicker(event) {
   }
 }
 
-// ACTIVE PROGRESSION CALCULATOR: Computes incremental tracking variations and saves to Cloud Server Sheets
 async function confirmCompletion(event) {
   event.stopPropagation();
   const sheetEndpoint = localStorage.getItem('foundation_sheet_url');
@@ -220,10 +216,13 @@ async function confirmCompletion(event) {
   
   triggerSnackbar("success", "Saving updates to cloud...");
 
-  // Force strict lowercase key mapping matching the normalized backend variables
-  let phase = (activeItem.phase || activeItem.Phase || 'engraving').toLowerCase();
-  let repsLeft = parseInt(activeItem.repsLeft !== undefined ? activeItem.repsLeft : activeItem.RepsLeft);
-  let currentDay = parseInt(activeItem.currentDay || activeItem.CurrentDay || activeItem.dayCount || activeItem.DayCount) || 1;
+  let phaseKey = activeItem.phase ? 'phase' : (activeItem.Phase ? 'Phase' : 'phase');
+  let dayKey = activeItem.currentDay ? 'currentDay' : (activeItem.CurrentDay ? 'CurrentDay' : 'currentDay');
+  let repsKey = activeItem.repsLeft !== undefined ? 'repsLeft' : (activeItem.RepsLeft !== undefined ? 'RepsLeft' : 'repsLeft');
+
+  let phase = (activeItem[phaseKey] || 'engraving').toLowerCase();
+  let repsLeft = parseInt(activeItem[repsKey]);
+  let currentDay = parseInt(activeItem[dayKey]) || 1;
 
   if (isNaN(repsLeft)) repsLeft = 15;
 
@@ -253,7 +252,6 @@ async function confirmCompletion(event) {
     activeItem.repsLeft = 0;
   }
 
-  // Final confirmation: rebuild object to ensure properties pass exactly as lowercase keys
   const synchronizedPayload = {
     id: activeItem.id || activeItem.Id,
     reference: activeItem.reference || activeItem.Reference,
