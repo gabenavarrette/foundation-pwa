@@ -1,141 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Foundation Scripture Review</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="manifest" href="manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foundation</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <!-- Google Fonts for an elegant textual look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 </head>
 <body>
 
-  <div class="app-shell">
-    
-    <div class="view active" id="view-dashboard">
-      <div class="view-header">
-        <div>
-          <p>Memory Engine</p>
-          <h1>Foundation</h1>
-        </div>
-        <div class="header-actions">
-          <button class="btn-header-action" onclick="openSettingsModal()">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.767c-.305.233-.434.627-.377.107l.003.11c.005.044.008.088.008.132 0 .044-.003.088-.008.132l-.003.11c-.057.48.072.874.378 1.107l1.003.767a1.125 1.125 0 0 1 .26 1.43l-1.296 2.247a1.125 1.125 0 0 1-1.37.491l-1.216-.456c-.356-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.767c.304-.233.434-.627.377-.107l-.003-.11a3.67 3.67 0 0 1-.008-.132c0-.044.003-.088.008-.132l.003-.11c.057-.48-.073-.874-.377-1.107l-1.004-.767a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-          </button>
-          <button class="btn-header-action" onclick="showAddVerse()">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg> Add
-          </button>
-        </div>
-      </div>
-
-      <div class="summary-bar">
-        <div class="summary-item">
-          <svg class="summary-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>
-          <div class="summary-info">
-            <span class="summary-val" id="dashboard-pending-count">0</span>
-            <span class="summary-lbl">Active Queue</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="section-title">Review Schedule</div>
-      <div class="queue-list" id="dashboard-queue-injection">
-        </div>
-    </div>
-
-    <div class="view" id="view-study">
-      <div class="view-header">
-        <button class="btn-back" onclick="showDashboard()">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg> Back
+    <header class="app-header">
+        <h1 class="brand">FOUNDATION</h1>
+        <button id="settings-btn" class="icon-btn" aria-label="Settings">
+            <!-- Simple SVG Gear Icon -->
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         </button>
-      </div>
+    </header>
 
-      <div class="card-container">
-        <div class="slider-card" id="study-card">
-          
-          <div class="face" id="card-front-theme" onclick="toggleCardFlip()">
-            <div class="card-state-indicator" id="card-tag-label">Reviewing</div>
-            <div class="card-main-ref" id="card-reference-title">Reference...</div>
-            <div class="card-interactive-area" id="card-tracking-render-front">
-              </div>
-          </div>
-          
-          <div class="face face-back" onclick="toggleCardFlip()">
-            <div class="card-state-indicator">Verification Text</div>
-            <div class="card-cipher-render" id="card-cipher-render" style="text-align: center; font-size: 1.15rem; line-height: 1.6; margin: auto 0; font-weight: 500;">Cipher layout...</div>
-            <div class="card-interactive-area" id="card-tracking-render-back">
-              </div>
-          </div>
+    <main class="dashboard-container">
+        <!-- Search and Add Bar -->
+        <section class="action-bar">
+            <div class="search-wrapper">
+                <input type="text" id="search-input" placeholder="Search references...">
+            </div>
+            <button id="add-verse-btn" class="primary-btn">+ Add</button>
+        </section>
 
-        </div>
-      </div>
-    </div>
+        <!-- Grid Container for Verse Cards -->
+        <section id="card-grid" class="card-grid">
+            
+            <!-- Example Card Structure matching image_690901.png -->
+            <div class="card-wrapper">
+                <div class="flip-card" onclick="this.classList.toggle('flipped')">
+                    
+                    <!-- Front of Card: Reference Mode -->
+                    <div class="card-face card-front phase-1">
+                        <div class="card-content">
+                            <span class="phase-label">PHASE 1 &bull; DEEP BURN</span>
+                            <h2 class="verse-reference">Romans 12:1-2</h2>
+                            <div class="target-badge">25x today</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Back of Card: Cipher Mode -->
+                    <div class="card-face card-back">
+                        <div class="card-content">
+                            <span class="cipher-title">ROMANS 12:1-2</span>
+                            <p class="cipher-text">I b y t, b, b t m o G, t y p y b a a l s, h, a t G, w i y s w. A d n b c t t w, b b t b t r o y m...</p>
+                            <div class="card-actions" onclick="event.stopPropagation();">
+                                <button class="complete-btn">Complete</button>
+                            </div>
+                        </div>
+                    </div>
 
-    <div class="view" id="view-add-verse">
-      <div class="view-header">
-        <button class="btn-back" onclick="showDashboard()">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg> Dashboard
-        </button>
-        <h1>Ingestion Pipeline</h1>
-      </div>
+                </div>
+            </div>
 
-      <div class="form-group">
-        <label for="verse-reference">Scripture Reference</label>
-        <input type="text" id="verse-reference" class="form-control" placeholder="e.g., John 3:16, Proverbs 3:5-6">
-      </div>
+        </section>
+    </main>
 
-      <button class="action-btn btn-dark" style="margin-bottom: 24px;" onclick="executeFetchPipeline()">Retrieve Passages</button>
-
-      <div class="preview-box" id="ingestion-preview-panel">
-        <div class="preview-title">ESV Engine Response Text</div>
-        <div class="preview-text" id="fetched-text-render">"Text body layout placeholder..."</div>
-        <div class="preview-title">Generated System Memory Cipher</div>
-        <div class="cipher-box" id="cipher-text-render">T b l o p ...</div>
-      </div>
-
-      <div class="button-group" id="form-execution-footer" style="display: none; margin-top: 24px;">
-        <button class="action-btn btn-dark" onclick="resetIngestionForm()">Clear</button>
-        <button class="action-btn btn-accent-complete" onclick="commitVerseToDatabase()">Commit to Cloud</button>
-      </div>
-    </div>
-
-    <div class="modal-overlay" id="settings-modal">
-      <div class="modal-card">
-        <h2>App Storage Vault</h2>
-        <p>Your connections are stored securely inside your browser's local memory and are never exposed on public repositories.</p>
-        
-        <div class="form-group">
-          <label for="modal-sheet-url-input">Google Sheet Database App URL</label>
-          <input type="url" id="modal-sheet-url-input" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
-        </div>
-
-        <div class="form-group">
-          <label for="modal-api-key-input">ESV API Authorization Key</label>
-          <input type="password" id="modal-api-key-input" class="form-control" placeholder="Paste secret token here...">
-        </div>
-
-        <div class="button-group">
-          <button class="action-btn btn-dark" onclick="closeSettingsModal()">Cancel</button>
-          <button class="action-btn btn-accent-complete" onclick="saveSettingsCredentials()">Save Configs</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="snackbar" id="global-notification-bar">
-      <div id="snackbar-icon-target"></div>
-      <div id="snackbar-message-target">Notification overlay...</div>
-    </div>
-
-  </div>
-
-  <script src="app.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js')
-          .then(reg => console.log('Service Worker registered!'))
-          .catch(err => console.log('Service Worker failed: ', err));
-      });
-    }
-  </script>
+    <script src="index.js" defer></script>
 </body>
 </html>
