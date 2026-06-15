@@ -358,13 +358,13 @@ async function executeFetchPipeline() {
     document.getElementById('ingestion-preview-panel').classList.add('active');
     document.getElementById('form-execution-footer').style.display = "flex";
 
-    temporaryIngestionObject = {
+temporaryIngestionObject = {
       reference: referenceInput,
       phase: "engraving",
       text: cleanFetchedText,
       cipher: builtCipher,
-      metrics: "15 Left",
-      dayCount: 1
+      repsLeft: 15,
+      currentDay: 1
     };
 
   } catch (error) {
