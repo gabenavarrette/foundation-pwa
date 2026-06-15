@@ -147,22 +147,104 @@ function toggleCardFlip() {
   document.getElementById('study-card').classList.toggle('flipped');
 }
 
+// Drops iterative ticking levels down on click events smoothly
 function handleInternalTicker(event) {
   event.stopPropagation();
   let activeItem = database[activeCardIndexInStudy];
+  if (!activeItem) return;
+
+  // Case-insensitive clean fallbacks
+  let currentMetrics = activeItem.metrics || activeItem.Metrics || "15 Left";
+  let currentReps = parseInt(currentMetrics);
+
+  // If already zero or completed today, don't let it decrement further
+  if (currentMetrics === "0 Left" || currentMetrics.toLowerCase().includes("done")) {
+    triggerSnackbar("success", "You are already done with this card for today!");
+    return;
+  }
+
+  if (currentReps > 1) {
+    currentReps--;
+    activeItem.metrics = `${currentReps} Left`;
+    if (activeItem.Metrics) activeItem.Metrics = `${currentReps} Left`; // Sync capitalized fallback
+    
+    document.getElementById('reps-display-box').innerText = activeItem.metrics;
+    triggerSnackbar("success", `Repetition logged. ${currentReps} remaining.`);
+  } else {
+    // Hit exactly 0 repetitions left
+    activeItem.metrics = "0 Left (Done for today!)";
+    if (activeItem.Metrics) activeItem.Metrics = "0 Left (Done for today!)";
+    
+    document.getElementById('reps-display-box').innerText = "0 Left";
+    document.getElementById('reps-display-box').style.color = "var(--accent-retention)";
+    
+    triggerSnackbar("success", "Session complete! Flip card over to finalize today's progress.");
+  }
+}
+
+// ACTIVE PROGRESSION CALCULATOR: Computes incremental tracking variations and saves to Cloud Server Sheets
+async function confirmCompletion(event) {
+  event.stopPropagation();
+  const sheetEndpoint = localStorage.getItem('foundation_sheet_url');
+  let activeItem = database[activeCardIndexInStudy];
   
-  if (activeItem) {
-    let currentReps = parseInt(activeItem.metrics) || 15;
-    if (currentReps > 1) {
-      currentReps--;
-      activeItem.metrics = `${currentReps} Left`;
-      document.getElementById('reps-display-box').innerText = activeItem.metrics;
-      triggerSnackbar("success", `Repetition logged. ${currentReps} remaining.`);
+  if (!activeItem || !sheetEndpoint) return;
+  
+  triggerSnackbar("success", "Syncing progression metrics with sheet...");
+
+  // Handle keys case-insensitively
+  let phaseKey = activeItem.phase ? 'phase' : 'Phase';
+  let dayCountKey = activeItem.dayCount ? 'dayCount' : (activeItem.daycount ? 'daycount' : 'DayCount');
+  let metricsKey = activeItem.metrics ? 'metrics' : 'Metrics';
+
+  let phaseClean = (activeItem[phaseKey] || 'engraving').toLowerCase();
+  let currentMetrics = (activeItem[metricsKey] || '').toLowerCase();
+
+  if (phaseClean === 'engraving') {
+    // If they hit zero loops or clicked complete while it read "0 Left"
+    if (currentMetrics.includes("0 left") || parseInt(currentMetrics) <= 0) {
+      // Graduate to Retention Phase
+      activeItem[phaseKey] = "retention";
+      activeItem[dayCountKey] = 1;
+      activeItem[metricsKey] = "Day 1 of 50";
     } else {
-      activeItem.metrics = `0 Left`;
-      document.getElementById('reps-display-box').innerText = activeItem.metrics;
-      triggerSnackbar("success", "Session complete! Tap card layout to flip.");
+      // Increment the day counter but keep them in Engraving until they hit 0 loops remaining
+      activeItem[dayCountKey] = Number(activeItem[dayCountKey] || 1) + 1;
+      activeItem[metricsKey] = "Done for today!";
     }
+  } else if (phaseClean === 'retention') {
+    let currentDay = Number(activeItem[dayCountKey] || 1);
+    if (currentDay >= 50) {
+      activeItem[phaseKey] = "matured";
+      activeItem[dayCountKey] = 50;
+      activeItem[metricsKey] = "Matured (Monthly)";
+    } else {
+      currentDay++;
+      activeItem[dayCountKey] = currentDay;
+      activeItem[metricsKey] = `Day ${currentDay} of 50`;
+    }
+  } else {
+    activeItem[metricsKey] = "Matured (Monthly)";
+  }
+
+  try {
+    // Push the finalized state structure directly to your Google Sheet rows
+    await fetch(sheetEndpoint, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(activeItem)
+    });
+    
+    triggerSnackbar("success", "Progress recorded successfully.");
+    
+    setTimeout(() => {
+      showDashboard();
+    }, 800);
+
+  } catch (error) {
+    console.error("Progression write failure:", error);
+    triggerSnackbar("warning", "Could not sync progression metrics with cloud sheet.");
   }
 }
 
