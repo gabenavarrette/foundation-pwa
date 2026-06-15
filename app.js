@@ -220,36 +220,55 @@ async function confirmCompletion(event) {
   
   triggerSnackbar("success", "Saving updates to cloud...");
 
-  let phaseKey = activeItem.phase ? 'phase' : (activeItem.Phase ? 'Phase' : 'phase');
-  let dayKey = activeItem.currentDay ? 'currentDay' : (activeItem.CurrentDay ? 'CurrentDay' : 'currentDay');
-  let repsKey = activeItem.repsLeft !== undefined ? 'repsLeft' : (activeItem.RepsLeft !== undefined ? 'RepsLeft' : 'repsLeft');
+  // Force strict lowercase key mapping matching the normalized backend variables
+  let phase = (activeItem.phase || activeItem.Phase || 'engraving').toLowerCase();
+  let repsLeft = parseInt(activeItem.repsLeft !== undefined ? activeItem.repsLeft : activeItem.RepsLeft);
+  let currentDay = parseInt(activeItem.currentDay || activeItem.CurrentDay || activeItem.dayCount || activeItem.DayCount) || 1;
 
-  let phase = (activeItem[phaseKey] || 'engraving').toLowerCase();
-  let repsLeft = parseInt(activeItem[repsKey]);
-  let currentDay = parseInt(activeItem[dayKey]) || 1;
+  if (isNaN(repsLeft)) repsLeft = 15;
 
   if (phase === 'engraving') {
-    if (repsLeft <= 0 || isNaN(repsLeft)) {
-      activeItem[phaseKey] = "retention";
-      activeItem[dayKey] = 1;
-      activeItem[repsKey] = 0;
+    if (repsLeft <= 0) {
+      activeItem.phase = "retention";
+      activeItem.currentDay = 1;
+      activeItem.repsLeft = 0;
     } else {
-      activeItem[phaseKey] = "engraving";
+      activeItem.phase = "engraving";
+      activeItem.repsLeft = repsLeft;
+      activeItem.currentDay = currentDay;
     }
   } else if (phase === 'retention') {
     if (currentDay >= 50) {
-      activeItem[phaseKey] = "matured";
-      activeItem[dayKey] = 50;
+      activeItem.phase = "matured";
+      activeItem.currentDay = 50;
+      activeItem.repsLeft = 0;
     } else {
-      activeItem[dayKey] = currentDay + 1;
+      activeItem.phase = "retention";
+      activeItem.currentDay = currentDay + 1;
+      activeItem.repsLeft = 0;
     }
+  } else {
+    activeItem.phase = "matured";
+    activeItem.currentDay = 50;
+    activeItem.repsLeft = 0;
   }
+
+  // Final confirmation: rebuild object to ensure properties pass exactly as lowercase keys
+  const synchronizedPayload = {
+    id: activeItem.id || activeItem.Id,
+    reference: activeItem.reference || activeItem.Reference,
+    phase: activeItem.phase,
+    text: activeItem.text || activeItem.Text,
+    cipher: activeItem.cipher || activeItem.Cipher,
+    repsLeft: activeItem.repsLeft,
+    currentDay: activeItem.currentDay
+  };
 
   try {
     await fetch(sheetEndpoint, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(activeItem)
+      body: JSON.stringify(synchronizedPayload)
     });
     
     triggerSnackbar("success", "Progress recorded successfully.");
