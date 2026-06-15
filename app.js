@@ -36,7 +36,7 @@ async function synchronizeDatabaseFromCloud() {
       triggerSnackbar("warning", "Database sync failed: " + result.error);
     }
   } catch (error) {
-    console.error("Network communication failure:", error);
+    console.error("Network communication failure detailed logs:", error);
     triggerSnackbar("warning", "Could not connect to database cloud engine.");
     target.innerHTML = `<div style="text-align:center; padding:32px; color:var(--accent-engraving); font-size:0.9rem;">Database Offline</div>`;
   }
@@ -70,9 +70,15 @@ function renderDashboardQueue() {
   }
 
   database.forEach((item, index) => {
-    let phase = (item.phase || 'engraving').toLowerCase();
-    let repsLeft = parseInt(item.repsLeft) !== undefined ? parseInt(item.repsLeft) : 15;
-    let currentDay = parseInt(item.currentDay) || 1;
+    let reference = item.reference || item.Reference || 'Unknown Reference';
+    let phase = (item.phase || item.Phase || 'engraving').toLowerCase();
+    
+    // Look for properties case-insensitively from the Sheet headers
+    let rawReps = item.repsLeft !== undefined ? item.repsLeft : (item.RepsLeft !== undefined ? item.RepsLeft : 15);
+    let repsLeft = parseInt(rawReps);
+    if (isNaN(repsLeft)) repsLeft = 15;
+
+    let currentDay = parseInt(item.currentDay || item.CurrentDay || item.dayCount || item.DayCount) || 1;
     
     let titleLabel = "";
     let badgeText = "";
@@ -93,7 +99,7 @@ function renderDashboardQueue() {
     row.onclick = () => launchStudyMode(index);
     row.innerHTML = `
       <div class="item-content">
-        <h3>${item.reference}</h3>
+        <h3>${reference}</h3>
         <div class="item-phase-lbl">${titleLabel}</div>
       </div>
       <div class="item-counter">${badgeText}</div>
@@ -107,12 +113,18 @@ function launchStudyMode(index) {
   activeCardIndexInStudy = index;
   const targetItem = database[index];
   
-  let phase = (targetItem.phase || 'engraving').toLowerCase();
-  let repsLeft = parseInt(targetItem.repsLeft) !== undefined ? parseInt(targetItem.repsLeft) : 15;
-  let currentDay = parseInt(targetItem.currentDay) || 1;
+  let reference = targetItem.reference || targetItem.Reference || 'No Reference';
+  let phase = (targetItem.phase || targetItem.Phase || 'engraving').toLowerCase();
+  let text = targetItem.text || targetItem.Text || 'No text found';
+  
+  let rawReps = targetItem.repsLeft !== undefined ? targetItem.repsLeft : (targetItem.RepsLeft !== undefined ? targetItem.RepsLeft : 15);
+  let repsLeft = parseInt(rawReps);
+  if (isNaN(repsLeft)) repsLeft = 15;
 
-  document.getElementById('card-reference-title').innerText = targetItem.reference;
-  document.getElementById('card-cipher-render').innerText = targetItem.text;
+  let currentDay = parseInt(targetItem.currentDay || targetItem.CurrentDay || targetItem.dayCount || targetItem.DayCount) || 1;
+
+  document.getElementById('card-reference-title').innerText = reference;
+  document.getElementById('card-cipher-render').innerText = text;
 
   const frontTheme = document.getElementById('card-front-theme');
   const label = document.getElementById('card-tag-label');
@@ -170,7 +182,9 @@ function handleInternalTicker(event) {
   let activeItem = database[activeCardIndexInStudy];
   if (!activeItem) return;
 
-  let reps = parseInt(activeItem.repsLeft);
+  // Track the correct case variation for local mutation
+  let repsKey = activeItem.repsLeft !== undefined ? 'repsLeft' : (activeItem.RepsLeft !== undefined ? 'RepsLeft' : 'repsLeft');
+  let reps = parseInt(activeItem[repsKey]);
   if (isNaN(reps)) reps = 15;
 
   if (reps <= 0) {
@@ -179,19 +193,16 @@ function handleInternalTicker(event) {
   }
 
   reps--;
-  activeItem.repsLeft = reps; // Mutate local database array
+  activeItem[repsKey] = reps; 
 
   const displayBox = document.getElementById('reps-display-box');
   if (reps > 0) {
     displayBox.innerText = `${reps} Left`;
     triggerSnackbar("success", `Repetition logged. ${reps} remaining.`);
   } else {
-    displayBox.innerText = "Done for today!";
-    displayBox.style.color = "var(--accent-retention)";
     triggerSnackbar("success", "Session complete! Flip card to save to the sheet.");
     
-    // Quick local UI transformation to clean up the button layout instantly
-    trackingAreaFront = document.getElementById('card-tracking-render-front');
+    let trackingAreaFront = document.getElementById('card-tracking-render-front');
     trackingAreaFront.innerHTML = `
       <div class="numeric-display" id="reps-display-box" style="color:var(--accent-retention); font-size:1.3rem; margin-bottom:4px;">Done for today!</div>
       <div class="mini-ticker">Flip card over to finalize progress.</div>
@@ -209,31 +220,33 @@ async function confirmCompletion(event) {
   
   triggerSnackbar("success", "Saving updates to cloud...");
 
-  let phase = (activeItem.phase || 'engraving').toLowerCase();
-  let repsLeft = parseInt(activeItem.repsLeft);
-  let currentDay = parseInt(activeItem.currentDay) || 1;
+  let phaseKey = activeItem.phase ? 'phase' : (activeItem.Phase ? 'Phase' : 'phase');
+  let dayKey = activeItem.currentDay ? 'currentDay' : (activeItem.CurrentDay ? 'CurrentDay' : 'currentDay');
+  let repsKey = activeItem.repsLeft !== undefined ? 'repsLeft' : (activeItem.RepsLeft !== undefined ? 'RepsLeft' : 'repsLeft');
+
+  let phase = (activeItem[phaseKey] || 'engraving').toLowerCase();
+  let repsLeft = parseInt(activeItem[repsKey]);
+  let currentDay = parseInt(activeItem[dayKey]) || 1;
 
   if (phase === 'engraving') {
-    if (repsLeft <= 0) {
-      // Completed all 15 loops: Graduate to Retention phase day 1
-      activeItem.phase = "retention";
-      activeItem.currentDay = 1;
-      activeItem.repsLeft = 0;
+    if (repsLeft <= 0 || isNaN(repsLeft)) {
+      activeItem[phaseKey] = "retention";
+      activeItem[dayKey] = 1;
+      activeItem[repsKey] = 0;
     } else {
-      // Didn't finish all 15 loops yet, just save current progress count
-      activeItem.phase = "engraving";
+      activeItem[phaseKey] = "engraving";
     }
   } else if (phase === 'retention') {
     if (currentDay >= 50) {
-      activeItem.phase = "matured";
-      activeItem.currentDay = 50;
+      activeItem[phaseKey] = "matured";
+      activeItem[dayKey] = 50;
     } else {
-      activeItem.currentDay = currentDay + 1;
+      activeItem[dayKey] = currentDay + 1;
     }
   }
 
   try {
-    const response = await fetch(sheetEndpoint, {
+    await fetch(sheetEndpoint, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(activeItem)
@@ -244,61 +257,6 @@ async function confirmCompletion(event) {
   } catch (error) {
     console.error("Write error:", error);
     triggerSnackbar("warning", "Could not sync layout updates.");
-  }
-}
-
-async function confirmCompletion(event) {
-  event.stopPropagation();
-  const sheetEndpoint = localStorage.getItem('foundation_sheet_url');
-  let activeItem = database[activeCardIndexInStudy];
-  
-  if (!activeItem || !sheetEndpoint) return;
-  
-  triggerSnackbar("success", "Syncing progression metrics with sheet...");
-
-  let phaseClean = (activeItem.phase || 'engraving').toLowerCase();
-
-  if (phaseClean === 'engraving') {
-    let currentReps = parseInt(activeItem.metrics);
-    if (currentReps <= 1 || isNaN(currentReps) || activeItem.metrics === "0 Left") {
-      activeItem.phase = "retention";
-      activeItem.dayCount = 1;
-      activeItem.metrics = "Day 1 of 50";
-    } else {
-      activeItem.dayCount = Number(activeItem.dayCount || 1) + 1;
-    }
-  } else if (phaseClean === 'retention') {
-    let currentDay = Number(activeItem.dayCount || 1);
-    if (currentDay >= 50) {
-      activeItem.phase = "matured";
-      activeItem.dayCount = 50;
-      activeItem.metrics = "Monthly";
-    } else {
-      currentDay++;
-      activeItem.dayCount = currentDay;
-      activeItem.metrics = `Day ${currentDay} of 50`;
-    }
-  } else {
-    activeItem.metrics = "Monthly";
-  }
-
-  try {
-    await fetch(sheetEndpoint, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(activeItem)
-    });
-    
-    triggerSnackbar("success", "Progress recorded successfully.");
-    
-    setTimeout(() => {
-      showDashboard();
-    }, 800);
-
-  } catch (error) {
-    console.error("Progression write failure:", error);
-    triggerSnackbar("warning", "Could not sync progression metrics with cloud sheet.");
   }
 }
 
@@ -326,7 +284,11 @@ async function executeFetchPipeline() {
     return;
   }
 
-  const verseExists = database.some(item => item.reference && item.reference.toLowerCase() === referenceInput.toLowerCase());
+  const verseExists = database.some(item => {
+    let ref = item.reference || item.Reference || '';
+    return ref.toLowerCase() === referenceInput.toLowerCase();
+  });
+  
   if (verseExists) {
     triggerSnackbar("warning", "This text is already in your study queue.");
     return;
@@ -358,7 +320,7 @@ async function executeFetchPipeline() {
     document.getElementById('ingestion-preview-panel').classList.add('active');
     document.getElementById('form-execution-footer').style.display = "flex";
 
-temporaryIngestionObject = {
+    temporaryIngestionObject = {
       reference: referenceInput,
       phase: "engraving",
       text: cleanFetchedText,
@@ -382,17 +344,12 @@ async function commitVerseToDatabase() {
   try {
     await fetch(sheetEndpoint, {
       method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(temporaryIngestionObject)
     });
     
     triggerSnackbar("success", `${temporaryIngestionObject.reference} added to study queue.`);
-    
-    setTimeout(() => {
-      showDashboard();
-    }, 800);
-
+    setTimeout(() => { showDashboard(); }, 800);
   } catch (error) {
     console.error("Write error:", error);
     triggerSnackbar("warning", "Failed to write record to remote cloud sheet.");
@@ -426,7 +383,6 @@ function saveSettingsCredentials() {
   
   closeSettingsModal();
   triggerSnackbar("success", "Security vault credentials updated.");
-  
   showDashboard();
 }
 
