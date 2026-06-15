@@ -51,9 +51,6 @@ function generateCipher(text) {
 // ==========================================
 // 3. SPACED REPETITION LOGIC (SRS)
 // ==========================================
-/**
- * Processes your custom 4-phase system rules upon memory card completion.
- */
 function calculateNextSRSState(currentPhase, currentDay) {
     let nextPhase = currentPhase;
     let nextDay = currentDay + 1;
@@ -61,7 +58,6 @@ function calculateNextSRSState(currentPhase, currentDay) {
 
     switch (currentPhase) {
         case 1:
-            // Phase 1: 5-Day Deep Burn
             if (nextDay > 5) {
                 nextPhase = 2;
                 nextDay = 1;
@@ -72,29 +68,26 @@ function calculateNextSRSState(currentPhase, currentDay) {
             break;
             
         case 2:
-            // Phase 2: Daily Solidify (45 Days total)
             if (nextDay > 45) {
                 nextPhase = 3;
                 nextDay = 1;
-                daysToAdd = 7; // Switch cadence to weekly intervals
+                daysToAdd = 7; 
             } else {
                 daysToAdd = 1;
             }
             break;
             
         case 3:
-            // Phase 3: Weekly Maintenance (7 Weeks total)
             if (nextDay > 7) {
                 nextPhase = 4;
                 nextDay = 1;
-                daysToAdd = 30; // Push out to lifetime monthly interval tracks
+                daysToAdd = 30; 
             } else {
                 daysToAdd = 7;
             }
             break;
             
         case 4:
-            // Phase 4: Lifetime Monthly tracking loop
             daysToAdd = 30;
             break;
     }
@@ -109,12 +102,8 @@ function calculateNextSRSState(currentPhase, currentDay) {
     };
 }
 
-/**
- * Calculates current execution targets displayed directly on card fronts
- */
 function getTargetRepsLabel(phase, dayInPhase) {
     if (phase === 1) {
-        // Linear step down rules: Day 1: 25x -> Day 5: 5x
         return `${30 - (dayInPhase * 5)}x today`;
     }
     if (phase === 2) return "1x today";
@@ -144,14 +133,15 @@ function renderGrid(verses) {
         const cardWrapper = document.createElement('div');
         cardWrapper.className = 'card-wrapper';
         
-        const cipherHTML = generateCipher(verse.text);
-        const targetLabel = getTargetRepsLabel(verse.phase, verse.current_day_in_phase);
+        // Pulled directly from database payload instead of computing live
+        const cipherHTML = verse.cipher || generateCipher(verse.text);
+        const targetLabel = getTargetRepsLabel(Number(verse.phase), Number(verse.current_day_in_phase));
 
         cardWrapper.innerHTML = `
             <div class="flip-card" id="card-${verse.id}">
                 <div class="card-face card-front phase-${verse.phase}">
                     <div class="card-content">
-                        <span class="phase-label">PHASE ${verse.phase} &bull; ${getPhaseName(verse.phase)}</span>
+                        <span class="phase-label">PHASE ${verse.phase} &bull; ${getPhaseName(Number(verse.phase))}</span>
                         <h2 class="verse-reference">${verse.reference}</h2>
                         <div class="target-badge">${targetLabel}</div>
                     </div>
@@ -187,9 +177,6 @@ function renderGrid(verses) {
 // ==========================================
 // 5. DATA SYNC & API OPERATORS
 // ==========================================
-/**
- * Fetches all user verses directly from the connected Google Sheet
- */
 function fetchSheetData() {
     if (!CONFIG.sheetUrl) return;
 
@@ -206,10 +193,9 @@ function handleVerseCompletion(id) {
     const verse = currentVerses.find(v => v.id === id);
     if (!verse) return;
 
-    const nextSRS = calculateNextSRSState(verse.phase, verse.current_day_in_phase);
+    const nextSRS = calculateNextSRSState(Number(verse.phase), Number(verse.current_day_in_phase));
     document.getElementById(`card-${id}`).classList.remove('flipped');
 
-    // Mutate state locally for instant UI update
     verse.phase = nextSRS.phase;
     verse.current_day_in_phase = nextSRS.dayInPhase;
     renderGrid(currentVerses);
@@ -233,9 +219,6 @@ function handleVerseCompletion(id) {
     }).catch(err => console.error("Sync log tracking transaction error: ", err));
 }
 
-/**
- * Contacts the ESV API to look up a verse reference, then saves it to Google Sheets
- */
 function handleAddVerse(reference) {
     if (!reference) return;
     
@@ -258,18 +241,18 @@ function handleAddVerse(reference) {
         }
 
         const fullText = data.passages[0].trim();
+        const generatedCipher = generateCipher(fullText); // Generate it pre-sync
         
-        // Build payload object targeting Google Sheet schema ingestion points
         const newVersePayload = {
             action: 'addVerse',
             reference: data.query,
             text: fullText,
             phase: 1,
+            cipher: generatedCipher, // Included in payload tracking schema shifts
             current_day_in_phase: 1,
             next_due_date: new Date().toISOString().split('T')[0]
         };
 
-        // Post record payload directly into remote Apps Script receiver
         return fetch(CONFIG.sheetUrl, {
             method: 'POST',
             mode: 'no-cors',
@@ -278,7 +261,6 @@ function handleAddVerse(reference) {
         });
     })
     .then(() => {
-        // Re-sync local dataset cache matrices
         setTimeout(fetchSheetData, 1000); 
     })
     .catch(err => console.error("Scripture creation lookup sequence exception: ", err));
@@ -288,26 +270,20 @@ function handleAddVerse(reference) {
 // 6. DOM SYSTEM WIRING MODALS & INITIALIZATION
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // Core structural interface elements configuration
     const settingsBtn = document.getElementById('settings-btn');
     const addVerseBtn = document.getElementById('add-verse-btn');
     
-    // Inject Settings & Add Verse Modals dynamically if not fully present in raw DOM markup profiles
     setupModalDOMElements();
 
     const settingsModal = document.getElementById('settings-modal');
     const addModal = document.getElementById('add-modal');
     
-    // Load existing environment targets straight out of local key storages
     document.getElementById('sheet-url-input').value = CONFIG.sheetUrl;
     document.getElementById('esv-key-input').value = CONFIG.esvKey;
 
-    // Toggle Modal Operations
     settingsBtn.addEventListener('click', () => settingsModal.classList.add('active'));
     addVerseBtn.addEventListener('click', () => addModal.classList.add('active'));
 
-    // Save Settings Config
     document.getElementById('save-settings-btn').addEventListener('click', () => {
         CONFIG.sheetUrl = document.getElementById('sheet-url-input').value;
         CONFIG.esvKey = document.getElementById('esv-key-input').value;
@@ -315,7 +291,6 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchSheetData();
     });
 
-    // Save New Verse Request
     document.getElementById('save-verse-btn').addEventListener('click', () => {
         const refInput = document.getElementById('verse-ref-input');
         handleAddVerse(refInput.value);
@@ -323,28 +298,22 @@ document.addEventListener('DOMContentLoaded', () => {
         addModal.classList.remove('active');
     });
 
-    // Universal Close Actions for Modal backdrops
     document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
         backdrop.addEventListener('click', (e) => {
             if (e.target === backdrop) backdrop.classList.remove('active');
         });
     });
 
-    // Check configuration and initiate baseline rendering cycles
     if (CONFIG.sheetUrl) {
         fetchSheetData();
     } else {
-        // Fallback placeholder dataset array matrix for visual onboarding inspections
         currentVerses = [
-            { id: "demo1", reference: "Proverbs 4:7", text: "The beginning of wisdom is this: Get wisdom, and whatever you get, get insight.", phase: 1, current_day_in_phase: 1 }
+            { id: "demo1", reference: "Proverbs 4:7", text: "The beginning of wisdom is this: Get wisdom, and whatever you get, get insight.", phase: 1, cipher: "T b o w i t: G w, a w y g, g i.", current_day_in_phase: 1 }
         ];
         renderGrid(currentVerses);
     }
 });
 
-/**
- * Automatically creates background functional structures for standard popup UI layouts.
- */
 function setupModalDOMElements() {
     if (!document.getElementById('settings-modal')) {
         const settings = document.createElement('div');
