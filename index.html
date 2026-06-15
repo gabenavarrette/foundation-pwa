@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Foundation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Foundation Scripture Review</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="manifest" href="manifest.json">
 </head>
@@ -11,152 +11,137 @@
 
   <div class="app-shell">
     
-    <div id="view-dashboard" class="view active">
-      <header class="view-header">
+    <!-- ================= VIEW 1: DASHBOARD MAIN SCREEN ================= -->
+    <div class="view active" id="view-dashboard">
+      <div class="view-header">
         <div>
+          <p>Memory Engine</p>
           <h1>Foundation</h1>
-          <p>Review Queue</p>
         </div>
         <div class="header-actions">
-          <button class="btn-header-action" onclick="openSettingsModal()" title="API Key Settings">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.767c-.304.232-.43.634-.322 1.004.006.023.012.047.017.07.034.232.034.468 0 .7a1.173 1.173 0 0 1-.017.07c-.108.37.018.772.322 1.004l1.003.767a1.125 1.125 0 0 1 .26 1.43l-1.296 2.247a1.125 1.125 0 0 1-1.37.49l-1.216-.456a1.125 1.125 0 0 0-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281a1.125 1.125 0 0 0-.646-.87a6.512 6.512 0 0 1-.22-.127a1.125 1.125 0 0 0-1.074-.124l-1.217.456a1.125 1.125 0 0 1-1.37-.49l-1.296-2.247a1.125 1.125 0 0 1 .26-1.43l1.002-.767a1.125 1.125 0 0 0 .322-1.004c-.006-.023-.012-.047-.017-.07a6.621 6.621 0 0 1 0-.7c.005-.022.011-.047.017-.07a1.125 1.125 0 0 0-.322-1.004l-1.002-.767a1.125 1.125 0 0 1-.26-1.43l1.296-2.247a1.125 1.125 0 0 1 1.37-.49l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128c.332-.183.582-.495.644-.869l.214-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+          <button class="btn-header-action" onclick="openSettingsModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.767c-.305.233-.434.627-.377.107l.003.11c.005.044.008.088.008.132 0 .044-.003.088-.008.132l-.003.11c-.057.48.072.874.378 1.107l1.003.767a1.125 1.125 0 0 1 .26 1.43l-1.296 2.247a1.125 1.125 0 0 1-1.37.491l-1.216-.456c-.356-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.767c.304-.233.434-.627.377-.107l-.003-.11a3.67 3.67 0 0 1-.008-.132c0-.044.003-.088.008-.132l.003-.11c.057-.48-.073-.874-.377-1.107l-1.004-.767a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
           </button>
           <button class="btn-header-action" onclick="showAddVerse()">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-            Add
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg> Add
           </button>
         </div>
-      </header>
+      </div>
 
-      <section class="summary-bar">
+      <div class="summary-bar">
         <div class="summary-item">
-          <svg class="summary-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" /></svg>
+          <svg class="summary-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>
           <div class="summary-info">
-            <div class="summary-val">14</div>
-            <div class="summary-lbl">Streak</div>
+            <span class="summary-val" id="dashboard-pending-count">0</span>
+            <span class="summary-lbl">Active Queue</span>
           </div>
         </div>
-        <div class="summary-item">
-          <svg class="summary-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 0 1 2.008 1.24l.885 1.77a2.25 2.25 0 0 0 2.007 1.24h1.98a2.25 2.25 0 0 0 2.007-1.24l.885-1.77a2.25 2.25 0 0 1 2.007-1.24h3.86" /></svg>
-          <div class="summary-info">
-            <div class="summary-val" id="dashboard-pending-count">0</div>
-            <div class="summary-lbl">Pending</div>
-          </div>
-        </div>
-        <div class="summary-item">
-          <svg class="summary-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3" /></svg>
-          <div class="summary-info">
-            <div class="summary-val">12</div>
-            <div class="summary-lbl">Matured</div>
-          </div>
-        </div>
-      </section>
+      </div>
 
-      <section style="flex: 1;">
-        <h2 class="section-title">Today's Focus</h2>
-        <div class="queue-list" id="dashboard-queue-injection">
-          </div>
-      </section>
+      <div class="section-title">Review Schedule</div>
+      <div class="queue-list" id="dashboard-queue-injection">
+        <!-- Apps Script database records drop into this space dynamically -->
+      </div>
     </div>
 
-    <div id="view-study" class="view">
-      <header class="view-header" style="margin-bottom: 20px;">
+    <!-- ================= VIEW 2: CARD DRILL SECTOR ================= -->
+    <div class="view" id="view-study">
+      <div class="view-header">
         <button class="btn-back" onclick="showDashboard()">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
-          Dashboard
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg> Back
         </button>
-      </header>
+      </div>
 
       <div class="card-container">
         <div class="slider-card" id="study-card" onclick="toggleCardFlip()">
-          
+          <!-- Card Body Front Layer -->
           <div class="face" id="card-front-theme">
-            <div class="card-state-indicator" id="card-tag-label">Phase</div>
-            <div class="card-main-ref" id="card-reference-title">Reference</div>
-            
+            <div class="card-state-indicator" id="card-tag-label">Reviewing</div>
+            <div class="card-main-ref" id="card-reference-title">Reference...</div>
             <div class="card-interactive-area" id="card-tracking-render" onclick="handleInternalTicker(event)">
-              </div>
-          </div>
-
-          <div class="face face-back">
-            <div class="card-state-indicator">Cipher</div>
-            <div class="card-cipher-text" id="card-cipher-render">Cipher Text</div>
-            <div style="text-align:center; font-size: 0.75rem; color: var(--text-muted)">
-              Tap to view reference
+              <!-- Segment blocks adjust depending on dynamic phase attributes -->
             </div>
           </div>
-
+          <!-- Card Body Back Layer -->
+          <div class="face face-back">
+            <div class="card-state-indicator">Verification Text</div>
+            <div class="card-cipher-render" id="card-cipher-render" style="text-align: center; font-size: 1.2rem; line-height: 1.6; margin: auto 0; font-weight: 500;">Cipher layout content...</div>
+            <div style="min-height: 60px; display:flex; align-items:center; justify-content:center;">
+              <button class="action-btn btn-accent-complete" style="width:100%;" onclick="confirmCompletion(event)">Mark Complete</button>
+            </div>
+          </div>
         </div>
       </div>
-
-      <footer class="button-group">
-        <button class="action-btn btn-dark" onclick="toggleCardFlip(); event.stopPropagation();">Flip</button>
-        <button class="action-btn btn-accent-complete" onclick="confirmCompletion()">Mark Completed</button>
-      </footer>
     </div>
 
-    <div id="view-add-verse" class="view">
-      <header class="view-header" style="margin-bottom: 24px;">
-        <div>
-          <h1>Add Verse</h1>
-          <p>Find & Convert</p>
-        </div>
-        <button class="btn-back" onclick="showDashboard()">Cancel</button>
-      </header>
-
-      <div style="flex: 1;">
-        <div class="form-group">
-          <label for="verse-reference">Scripture Reference</label>
-          <input type="text" id="verse-reference" class="form-control" placeholder="e.g., John 3:16, Proverbs 3:5" autofocus>
-        </div>
-
-        <button class="action-btn btn-submit" onclick="executeFetchPipeline()">Fetch Verse</button>
-
-        <div class="preview-box" id="ingestion-preview-panel">
-          <div class="preview-title" style="color: var(--accent-success)">Text Preview</div>
-          <div class="preview-text" id="fetched-text-render">...</div>
-          <div class="preview-title">Generated Study Cipher</div>
-          <div class="cipher-box" id="cipher-text-render">...</div>
-        </div>
+    <!-- ================= VIEW 3: INGEST DATA MODULE ================= -->
+    <div class="view" id="view-add-verse">
+      <div class="view-header">
+        <button class="btn-back" onclick="showDashboard()">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg> Dashboard
+        </button>
+        <h1>Ingestion Pipeline</h1>
       </div>
 
-      <footer class="button-group" id="form-execution-footer" style="display: none; margin-top: 16px;">
+      <div class="form-group">
+        <label for="verse-reference">Scripture Reference</label>
+        <input type="text" id="verse-reference" class="form-control" placeholder="e.g., John 3:16, Proverbs 3:5-6">
+      </div>
+
+      <button class="action-btn btn-dark" style="margin-bottom: 24px;" onclick="executeFetchPipeline()">Retrieve Passages</button>
+
+      <div class="preview-box" id="ingestion-preview-panel">
+        <div class="preview-title">ESV Engine Response Text</div>
+        <div class="preview-text" id="fetched-text-render">"Text body layout placeholder..."</div>
+        <div class="preview-title">Generated System Memory Cipher</div>
+        <div class="cipher-box" id="cipher-text-render">T b l o p ...</div>
+      </div>
+
+      <div class="button-group" id="form-execution-footer" style="display: none; margin-top: 24px;">
         <button class="action-btn btn-dark" onclick="resetIngestionForm()">Clear</button>
-        <button class="action-btn btn-accent-complete" onclick="commitVerseToDatabase()">Add to Queue</button>
-      </footer>
+        <button class="action-btn btn-accent-complete" onclick="commitVerseToDatabase()">Commit to Cloud</button>
+      </div>
     </div>
 
+    <!-- ================= SYSTEM HUD OVERLAYS ================= -->
     <div class="modal-overlay" id="settings-modal">
       <div class="modal-card">
-        <h2>ESV API Credentials</h2>
-        <p>Your API token is saved locally to your device's browser vault storage and is never exposed elsewhere.</p>
+        <h2>App Storage Vault</h2>
+        <p>Your connections are stored securely inside your browser's local memory and are never exposed on public repositories.</p>
+        
         <div class="form-group">
-          <label for="modal-api-key-input">Authorization Key Token</label>
+          <label for="modal-sheet-url-input">Google Sheet Database App URL</label>
+          <input type="url" id="modal-sheet-url-input" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
+        </div>
+
+        <div class="form-group">
+          <label for="modal-api-key-input">ESV API Authorization Key</label>
           <input type="password" id="modal-api-key-input" class="form-control" placeholder="Paste secret token here...">
         </div>
+
         <div class="button-group">
           <button class="action-btn btn-dark" onclick="closeSettingsModal()">Cancel</button>
-          <button class="action-btn btn-accent-complete" onclick="saveSettingsCredentials()">Save Token</button>
+          <button class="action-btn btn-accent-complete" onclick="saveSettingsCredentials()">Save Configs</button>
         </div>
       </div>
     </div>
 
     <div class="snackbar" id="global-notification-bar">
       <div id="snackbar-icon-target"></div>
-      <span id="snackbar-message-target">Notification Message</span>
+      <div id="snackbar-message-target">Notification status message placeholder...</div>
     </div>
 
   </div>
 
   <script src="app.js"></script>
   <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('service-worker.js')
-        .then(reg => console.log('Service Worker registered!'))
-        .catch(err => console.log('Service Worker failed: ', err));
-    });
-  }
-</script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(reg => console.log('Service Worker registered!'))
+          .catch(err => console.log('Service Worker failed: ', err));
+      });
+    }
+  </script>
 </body>
 </html>
