@@ -70,16 +70,22 @@ function renderDashboardQueue() {
   }
 
   database.forEach((item, index) => {
-    let titleLabel = item.phase === 'engraving' ? `Engraving — Day ${item.dayCount}` : item.phase === 'retention' ? `Retention — Day ${item.dayCount}` : `Matured`;
+    // Safety fallback: if phase or dayCount are blank/undefined, handle them gracefully
+    let phaseClean = (item.phase || 'engraving').toLowerCase();
+    let dayCountClean = item.dayCount || 1;
+    let metricsClean = item.metrics || (phaseClean === 'engraving' ? '15 Left' : 'Day 1 of 50');
+
+    let titleLabel = phaseClean === 'engraving' ? `Engraving — Day ${dayCountClean}` : phaseClean === 'retention' ? `Retention — Day ${dayCountClean}` : `Matured`;
+    
     let row = document.createElement('div');
-    row.className = `queue-item item-${item.phase}`;
+    row.className = `queue-item item-${phaseClean}`;
     row.onclick = () => launchStudyMode(index);
     row.innerHTML = `
       <div class="item-content">
-        <h3>${item.reference}</h3>
+        <h3>${item.reference || 'Unknown Reference'}</h3>
         <div class="item-phase-lbl">${titleLabel}</div>
       </div>
-      <div class="item-counter">${item.metrics}</div>
+      <div class="item-counter">${metricsClean}</div>
     `;
     target.appendChild(row);
   });
@@ -90,8 +96,12 @@ function launchStudyMode(index) {
   activeCardIndexInStudy = index;
   const targetItem = database[index];
   
-  document.getElementById('card-reference-title').innerText = targetItem.reference;
-  document.getElementById('card-cipher-render').innerText = targetItem.text; // Render the actual phrase copy text on the back
+  // Safety checks for layout items
+  let phaseClean = (targetItem.phase || 'engraving').toLowerCase();
+  let metricsClean = targetItem.metrics || (phaseClean === 'engraving' ? '15 Left' : 'Day 1 of 50');
+  
+  document.getElementById('card-reference-title').innerText = targetItem.reference || 'No Reference';
+  document.getElementById('card-cipher-render').innerText = targetItem.text || 'No text found';
 
   const frontTheme = document.getElementById('card-front-theme');
   const label = document.getElementById('card-tag-label');
@@ -101,50 +111,47 @@ function launchStudyMode(index) {
   frontTheme.className = "face";
   document.getElementById('study-card').classList.remove('flipped');
 
-  // Inject proper structural interface layout depending on active card state rules
-  if (targetItem.phase === 'engraving') {
+  if (phaseClean === 'engraving') {
     frontTheme.classList.add('face-engraving');
     label.innerText = "Engraving Mode";
-    
     trackingAreaFront.innerHTML = `
-      <div class="numeric-display" id="reps-display-box" style="color:var(--text-main); font-size:1.4rem; margin-bottom:4px;">${targetItem.metrics}</div>
+      <div class="numeric-display" id="reps-display-box" style="color:var(--text-main); font-size:1.4rem; margin-bottom:4px;">${metricsClean}</div>
       <button class="action-btn btn-dark" style="padding:10px 16px; font-size:0.8rem; margin-top:8px;" onclick="handleInternalTicker(event)">Log Repetition (-1)</button>
     `;
-  } else if (targetItem.phase === 'retention') {
+  } else if (phaseClean === 'retention') {
     frontTheme.classList.add('face-retention');
     label.innerText = "Retention Mode";
-    
     trackingAreaFront.innerHTML = `
-      <div class="numeric-label-clean" style="font-size:1.1rem; color:var(--text-main); font-weight:600;">${targetItem.metrics}</div>
-      <div class="mini-ticker">Tap card layout to verify text cipher matching</div>
+      <div class="numeric-label-clean" style="font-size:1.1rem; color:var(--text-main); font-weight:600;">${metricsClean}</div>
+      <div class="mini-ticker">Tap card to verify text alignment</div>
     `;
-  } else if (targetItem.phase === 'matured') {
+  } else {
     frontTheme.classList.add('face-matured');
     label.innerText = "Matured Maintenance";
-    
     trackingAreaFront.innerHTML = `
-      <div class="numeric-label-clean" style="font-size:1.1rem; color:var(--text-main); font-weight:600;">${targetItem.metrics} Routine</div>
-      <div class="mini-ticker">Tap layout to review full text verification</div>
+      <div class="numeric-label-clean" style="font-size:1.1rem; color:var(--text-main); font-weight:600;">${metricsClean} Routine</div>
+      <div class="mini-ticker">Tap card to review full text verification</div>
     `;
   }
 
-  // Back layout controls: House the validation verification endpoint buttons clearly
   trackingAreaBack.innerHTML = `
     <button class="action-btn btn-accent-complete" style="width:100%; font-weight:700;" onclick="confirmCompletion(event)">Mark Review Complete</button>
   `;
+
+  document.getElementById('view-dashboard').classList.remove('active');
+  document.getElementById('view-study').classList.add('active');
 }
 
 function toggleCardFlip() {
   document.getElementById('study-card').classList.toggle('flipped');
 }
 
-// Drops iterative ticking levels down on click events smoothly
 function handleInternalTicker(event) {
-  event.stopPropagation(); // Prevents flipping the card when clicking the log button
+  event.stopPropagation();
   let activeItem = database[activeCardIndexInStudy];
   
-  if (activeItem && activeItem.phase === 'engraving') {
-    let currentReps = parseInt(activeItem.metrics);
+  if (activeItem) {
+    let currentReps = parseInt(activeItem.metrics) || 15;
     if (currentReps > 1) {
       currentReps--;
       activeItem.metrics = `${currentReps} Left`;
@@ -153,14 +160,13 @@ function handleInternalTicker(event) {
     } else {
       activeItem.metrics = `0 Left`;
       document.getElementById('reps-display-box').innerText = activeItem.metrics;
-      triggerSnackbar("success", "Session complete! Tap top body to flip and lock.");
+      triggerSnackbar("success", "Session complete! Tap card layout to flip.");
     }
   }
 }
 
-// ACTIVE PROGRESSION CALCULATOR: Computes incremental tracking variations and saves to Cloud Server Sheets
 async function confirmCompletion(event) {
-  event.stopPropagation(); // Prevents card flip loops from colliding with storage push pipelines
+  event.stopPropagation();
   const sheetEndpoint = localStorage.getItem('foundation_sheet_url');
   let activeItem = database[activeCardIndexInStudy];
   
@@ -168,18 +174,19 @@ async function confirmCompletion(event) {
   
   triggerSnackbar("success", "Syncing progression metrics with sheet...");
 
-  // Compute target memory progression increments
-  if (activeItem.phase === 'engraving') {
+  let phaseClean = (activeItem.phase || 'engraving').toLowerCase();
+
+  if (phaseClean === 'engraving') {
     let currentReps = parseInt(activeItem.metrics);
     if (currentReps <= 1 || isNaN(currentReps) || activeItem.metrics === "0 Left") {
       activeItem.phase = "retention";
       activeItem.dayCount = 1;
       activeItem.metrics = "Day 1 of 50";
     } else {
-      activeItem.dayCount = Number(activeItem.dayCount) + 1;
+      activeItem.dayCount = Number(activeItem.dayCount || 1) + 1;
     }
-  } else if (activeItem.phase === 'retention') {
-    let currentDay = Number(activeItem.dayCount);
+  } else if (phaseClean === 'retention') {
+    let currentDay = Number(activeItem.dayCount || 1);
     if (currentDay >= 50) {
       activeItem.phase = "matured";
       activeItem.dayCount = 50;
@@ -189,12 +196,11 @@ async function confirmCompletion(event) {
       activeItem.dayCount = currentDay;
       activeItem.metrics = `Day ${currentDay} of 50`;
     }
-  } else if (activeItem.phase === 'matured') {
+  } else {
     activeItem.metrics = "Monthly";
   }
 
   try {
-    // Send standard POST execution directly to backend endpoints
     await fetch(sheetEndpoint, {
       method: "POST",
       mode: "no-cors",
@@ -238,7 +244,7 @@ async function executeFetchPipeline() {
     return;
   }
 
-  const verseExists = database.some(item => item.reference.toLowerCase() === referenceInput.toLowerCase());
+  const verseExists = database.some(item => item.reference && item.reference.toLowerCase() === referenceInput.toLowerCase());
   if (verseExists) {
     triggerSnackbar("warning", "This text is already in your study queue.");
     return;
