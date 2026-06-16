@@ -180,26 +180,44 @@ function renderGrid(verses) {
 function fetchSheetData() {
     if (!CONFIG.sheetUrl) return;
 
-    // We fetch without 'no-cors' here because GET requests from Apps Script 
-    // must be allowed to follow the redirect chain to get the JSON content.
-    fetch(`${CONFIG.sheetUrl}?action=getVerses`)
-        .then(res => {
-            if (!res.ok) throw new Error('Network response was not ok');
-            return res.json();
-        })
-        .then(data => {
-            if (data.error) {
-                console.error("Backend returned an error:", data.error);
-                return;
-            }
-            currentVerses = data;
-            renderGrid(currentVerses);
-        })
-        .catch(err => {
-            console.error("Database initialization fetch failure: ", err);
-            // Fallback visualization if the connection fails or redirects are blocked
-            grid.innerHTML = `<div class="no-cards" style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); margin-top: 3rem;">Connection redirect issue. Double-check that your Web App deployment is set to "Anyone".</div>`;
-        });
+    console.log("Attempting database fetch from: ", CONFIG.sheetUrl);
+
+    // Standard GET requests to Apps Script MUST not have restrictive modes
+    fetch(`${CONFIG.sheetUrl}?action=getVerses`, {
+        method: 'GET',
+        redirect: 'follow' // Force the browser to follow Google's 302 redirect chain
+    })
+    .then(res => {
+        console.log("Network raw response received. Status:", res.status);
+        if (!res.ok) throw new Error(`HTTP Error Status: ${res.status}`);
+        return res.json();
+    })
+    .then(data => {
+        if (data.error) {
+            console.error("Backend Apps Script Exception:", data.error);
+            alert("Backend Error: " + data.error);
+            return;
+        }
+        console.log("Database fetch successful. Rows found:", data.length);
+        currentVerses = data;
+        renderGrid(currentVerses);
+    })
+    .catch(err => {
+        console.error("Critical Fetch Fail Routine:", err);
+        
+        // Visual warning indicator directly on dashboard grid
+        const grid = document.getElementById('card-grid');
+        if (grid) {
+            grid.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 2rem; border: 1px dashed #333; margin-top: 2rem;">
+                    <p style="color: #ff4a4a; font-weight: bold; margin-bottom: 0.5rem;">Database Sync Blocked (302/CORS)</p>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; max-width: 400px; margin: 0 auto 1rem;">
+                        The browser blocked the redirect from Google Sheets. This usually means the web app was not deployed to 'Anyone'.
+                    </p>
+                    <button onclick="fetchSheetData()" class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem;">Retry Connection</button>
+                </div>`;
+        }
+    });
 }
 
 function handleVerseCompletion(id) {
