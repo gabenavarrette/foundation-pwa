@@ -345,3 +345,12 @@ function setupModalDOMElements() {
         document.body.appendChild(add);
     }
 }
+
+// Register the Service Worker for PWA compliance
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./serviceworker.js')
+            .then(reg => console.log('Foundation Service Worker Registered Successfully! Scope:', reg.scope))
+            .catch(err => console.error('Service Worker registration failed:', err));
+    });
+}
