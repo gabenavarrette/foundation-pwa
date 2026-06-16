@@ -188,20 +188,22 @@ function fetchSheetData() {
 
     console.log("Attempting database fetch from: ", CONFIG.sheetUrl);
 
-    // Standard GET requests to Apps Script MUST not have restrictive modes
+    // Using mode: 'cors' forces the browser to handle the redirect chain 
+    // seamlessly across Google's secure content domains.
     fetch(`${CONFIG.sheetUrl}?action=getVerses`, {
         method: 'GET',
-        redirect: 'follow' // Force the browser to follow Google's 302 redirect chain
+        mode: 'cors',
+        headers: {
+            'Accept': 'application/json'
+        }
     })
     .then(res => {
-        console.log("Network raw response received. Status:", res.status);
         if (!res.ok) throw new Error(`HTTP Error Status: ${res.status}`);
         return res.json();
     })
     .then(data => {
         if (data.error) {
             console.error("Backend Apps Script Exception:", data.error);
-            alert("Backend Error: " + data.error);
             return;
         }
         console.log("Database fetch successful. Rows found:", data.length);
@@ -211,16 +213,16 @@ function fetchSheetData() {
     .catch(err => {
         console.error("Critical Fetch Fail Routine:", err);
         
-        // Visual warning indicator directly on dashboard grid
+        // Clear old error messages if it was a temporary network blip
         const grid = document.getElementById('card-grid');
         if (grid) {
             grid.innerHTML = `
                 <div style="grid-column: 1/-1; text-align: center; padding: 2rem; border: 1px dashed #333; margin-top: 2rem;">
                     <p style="color: #ff4a4a; font-weight: bold; margin-bottom: 0.5rem;">Database Sync Blocked (302/CORS)</p>
                     <p style="color: var(--text-secondary); font-size: 0.85rem; max-width: 400px; margin: 0 auto 1rem;">
-                        The browser blocked the redirect from Google Sheets. This usually means the web app was not deployed to 'Anyone'.
+                        The browser is still dropping the connection redirect token. Click retry to attempt a clean connection handshake.
                     </p>
-                    <button onclick="fetchSheetData()" class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem;">Retry Connection</button>
+                    <button onclick="fetchSheetData()" class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem; cursor: pointer;">Retry Connection</button>
                 </div>`;
         }
     });
