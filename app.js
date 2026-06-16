@@ -186,19 +186,18 @@ function renderGrid(verses) {
 function fetchSheetData() {
     if (!CONFIG.sheetUrl) return;
 
-    console.log("Attempting database fetch from: ", CONFIG.sheetUrl);
+    console.log("Initiating clean connection handshake with backend database...");
 
-    // Using mode: 'cors' forces the browser to handle the redirect chain 
-    // seamlessly across Google's secure content domains.
+    // 1. We strip out all custom headers and parameters.
+    // 2. We do NOT use application/json headers which trigger the pre-flight crash.
     fetch(`${CONFIG.sheetUrl}?action=getVerses`, {
         method: 'GET',
-        mode: 'cors',
-        headers: {
-            'Accept': 'application/json'
-        }
+        mode: 'cors', 
+        redirect: 'follow' // Crucial: lets the browser ride the 302 redirect chain natively
     })
     .then(res => {
-        if (!res.ok) throw new Error(`HTTP Error Status: ${res.status}`);
+        // If Google successfully hands off the data file, res.ok will be true
+        if (!res.ok) throw new Error(`HTTP Interface Error: ${res.status}`);
         return res.json();
     })
     .then(data => {
@@ -206,23 +205,22 @@ function fetchSheetData() {
             console.error("Backend Apps Script Exception:", data.error);
             return;
         }
-        console.log("Database fetch successful. Rows found:", data.length);
+        console.log("Database synced successfully! Records retrieved:", data.length);
         currentVerses = data;
         renderGrid(currentVerses);
     })
     .catch(err => {
-        console.error("Critical Fetch Fail Routine:", err);
+        console.error("Connection failed at the browser level:", err);
         
-        // Clear old error messages if it was a temporary network blip
         const grid = document.getElementById('card-grid');
         if (grid) {
             grid.innerHTML = `
                 <div style="grid-column: 1/-1; text-align: center; padding: 2rem; border: 1px dashed #333; margin-top: 2rem;">
-                    <p style="color: #ff4a4a; font-weight: bold; margin-bottom: 0.5rem;">Database Sync Blocked (302/CORS)</p>
+                    <p style="color: #ff4a4a; font-weight: bold; margin-bottom: 0.5rem;">Database Connection Delayed</p>
                     <p style="color: var(--text-secondary); font-size: 0.85rem; max-width: 400px; margin: 0 auto 1rem;">
-                        The browser is still dropping the connection redirect token. Click retry to attempt a clean connection handshake.
+                        Your browser is caching the old network request security rules. Toggle 'Disable Cache' in F12 and refresh.
                     </p>
-                    <button onclick="fetchSheetData()" class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem; cursor: pointer;">Retry Connection</button>
+                    <button onclick="fetchSheetData()" class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem; cursor: pointer;">Retry Handshake</button>
                 </div>`;
         }
     });
