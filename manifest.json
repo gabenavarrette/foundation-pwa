@@ -1,18 +1,29 @@
 {
   "short_name": "Foundation",
-  "name": "Foundation Scripture Review",
-  "description": "A clean, distraction-free scripture memory rotation system.",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#090a0f",
-  "theme_color": "#12141c",
+  "name": "Foundation Scripture Memory",
+  "description": "A minimalist spaced-repetition progressive web app for long-term scripture retention.",
   "icons": [
     {
-      "src": "https://img.icons8.com/fluent-categories/512/book.png",
+      "src": "icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "icons/icon-512-maskable.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "start_url": "index.html",
+  "background_color": "#0d0d0d",
+  "theme_color": "#0d0d0d",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "categories": ["education", "utilities"]
 }
