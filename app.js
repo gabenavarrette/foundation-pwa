@@ -119,44 +119,64 @@ function getPhaseName(phase) {
 // ==========================================
 // 4. UI RENDERING ENGINE
 // ==========================================
+// ==========================================
+// 4. UI RENDERING ENGINE
+// ==========================================
 function renderGrid(verses) {
     const grid = document.getElementById('card-grid');
     if (!grid) return;
-
-    // 1. Clear out any old placeholders exactly once BEFORE the loop starts
     grid.innerHTML = '';
 
-    if (verses.length === 0) {
-        grid.innerHTML = `<div class="no-cards">No verses found due for review today. Clean slate!</div>`;
+    if (!verses || verses.length === 0) {
+        grid.innerHTML = `<div class="no-cards" style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); margin-top: 3rem;">No verses configured. Tap "+ Add" or configure keys in Settings.</div>`;
         return;
     }
 
-    // 2. Loop through all fetched database rows
     verses.forEach(verse => {
-        // Create the card string layout
-        const cardHtml = `
-            <div class="card" data-id="${verse.id}">
-                <div class="phase-bar phase-${verse.phase}"></div>
-                <div class="card-header">
-                    <span class="verse-reference">${verse.reference}</span>
-                    <span class="phase-badge">Phase ${verse.phase}</span>
+        const cardWrapper = document.createElement('div');
+        cardWrapper.className = 'card-wrapper';
+        
+        // Pulled directly from database payload instead of computing live
+        const cipherHTML = verse.cipher || generateCipher(verse.text);
+        
+        // FIXED: Explicitly fallback to verse.current_day_in_phase so it matches your spreadsheet row data
+        const dayInPhaseNum = Number(verse.current_day_in_phase !== undefined ? verse.current_day_in_phase : verse.dayInPhase);
+        const targetLabel = getTargetRepsLabel(Number(verse.phase), dayInPhaseNum);
+
+        cardWrapper.innerHTML = `
+            <div class="flip-card" id="card-${verse.id}">
+                <div class="card-face card-front phase-${verse.phase}">
+                    <div class="card-content">
+                        <span class="phase-label">PHASE ${verse.phase} &bull; ${getPhaseName(Number(verse.phase))}</span>
+                        <h2 class="verse-reference">${verse.reference}</h2>
+                        <div class="target-badge">${targetLabel}</div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <!-- Cipher view showing first letters -->
-                    <p class="cipher-text">${verse.cipher}</p>
-                    <!-- Full text hidden by default -->
-                    <p class="full-text hidden">${verse.text}</p>
-                </div>
-                <div class="card-actions">
-                    <button class="secondary-btn toggle-text-btn" onclick="toggleText('${verse.id}')">Reveal</button>
-                    <button class="primary-btn complete-btn" onclick="completeReview('${verse.id}')">Complete</button>
+                <div class="card-face card-back">
+                    <div class="card-content">
+                        <span class="cipher-title">${verse.reference.toUpperCase()}</span>
+                        <p class="cipher-text">${cipherHTML}</p>
+                        <div class="card-actions">
+                            <button class="complete-btn" data-id="${verse.id}">Complete</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
 
-        // 3. CRUCIAL: Use += to APPEND each card. 
-        // If you only use =, it overwrites the grid every time, leaving only the last row!
-        grid.innerHTML += cardHtml;
+        const flipCard = cardWrapper.querySelector('.flip-card');
+        flipCard.addEventListener('click', (e) => {
+            if (e.target.classList.contains('complete-btn')) return;
+            flipCard.classList.toggle('flipped');
+        });
+
+        const completeBtn = cardWrapper.querySelector('.complete-btn');
+        completeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleVerseCompletion(verse.id);
+        });
+
+        grid.appendChild(cardWrapper);
     });
 }
 
