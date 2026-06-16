@@ -180,13 +180,26 @@ function renderGrid(verses) {
 function fetchSheetData() {
     if (!CONFIG.sheetUrl) return;
 
+    // We fetch without 'no-cors' here because GET requests from Apps Script 
+    // must be allowed to follow the redirect chain to get the JSON content.
     fetch(`${CONFIG.sheetUrl}?action=getVerses`)
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) throw new Error('Network response was not ok');
+            return res.json();
+        })
         .then(data => {
+            if (data.error) {
+                console.error("Backend returned an error:", data.error);
+                return;
+            }
             currentVerses = data;
             renderGrid(currentVerses);
         })
-        .catch(err => console.error("Database initialization fetch failure: ", err));
+        .catch(err => {
+            console.error("Database initialization fetch failure: ", err);
+            // Fallback visualization if the connection fails or redirects are blocked
+            grid.innerHTML = `<div class="no-cards" style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); margin-top: 3rem;">Connection redirect issue. Double-check that your Web App deployment is set to "Anyone".</div>`;
+        });
 }
 
 function handleVerseCompletion(id) {
